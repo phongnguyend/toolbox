@@ -1,0 +1,48 @@
+﻿az ad user create --display-name "<Display Name>" \
+                  --password "<Password>" \
+                  --user-principal-name "<Name>@<Domain>" \
+                  --force-change-password-next-login false
+                  
+az group create --name "<Group Name>" --location "southeastasia"
+
+az role assignment create --role Owner \
+                          --assignee "<Name>@<Domain>" \
+                          --subscription "<Subscription>" \
+                          --resource-group "<Group Name>"
+
+az storage account create --resource-group "<Group Name>" \
+                          --name "<Storage Account Name>" \
+                          --location "southeastasia"
+
+az sql server create --resource-group "<Group Name>" \
+                     --name "<Sql Server Name>" \
+                     --location "southeastasia" \
+                     --admin-user "<Name>" \
+                     --admin-password '<Password>'
+
+az sql server firewall-rule create --resource-group "<Group Name>" \
+                                   --server "<Sql Server Name>" \
+                                   --name "Allow Azure services and resources to access this server" \
+                                   --start-ip-address 0.0.0.0 \
+                                   --end-ip-address 0.0.0.0
+
+az sql db create --resource-group "<Group Name>" \
+                 --name "RookieShop" \
+                 --server "<Sql Server Name>" \
+                 --service-objective Basic \
+                 --backup-storage-redundancy Local
+
+az appservice plan create --resource-group "<Group Name>" \
+                          --name RookieShop-Hosts \
+                          --location "southeastasia" \
+                          --sku D1 \
+
+az webapp create --resource-group "<Group Name>" \
+                 --plan RookieShop-Hosts \
+                 --name <WebApp1 Name> \
+                 --runtime "DOTNET|5.0" 
+
+az webapp create --resource-group "<Group Name>" \
+                 --plan RookieShop-Hosts \
+                 --name <WebApp2 Name> \
+                 --runtime "DOTNET|5.0" 

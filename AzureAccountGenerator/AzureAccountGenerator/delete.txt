@@ -1,0 +1,3 @@
+﻿az group delete -y --name "<Group Name>"
+
+az ad user delete --upn-or-object-id "<Name>@<Domain>"
