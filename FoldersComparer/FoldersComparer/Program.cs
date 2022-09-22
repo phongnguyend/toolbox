@@ -5,6 +5,8 @@ namespace FoldersComparer
 {
     internal class Program
     {
+        private static string[] textExtensions = File.ReadAllLines(".textextensions");
+
         static void Main(string[] args)
         {
             var path1 = @"D:\folder1";
@@ -14,20 +16,15 @@ namespace FoldersComparer
                 File.Delete("results.txt");
 
             var files = Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories);
+
+            var ignoredFolders = File.ReadAllLines(".foldersignore");
+
             foreach (var file1 in files)
             {
-                if (file1.Contains("\\.svn\\"))
+                if (ignoredFolders.Any(x => file1.Contains($"\\{x}\\")))
+                {
                     continue;
-                if (file1.Contains("\\.git\\"))
-                    continue;
-                if (file1.Contains("\\.vs\\"))
-                    continue;
-                if (file1.Contains("\\node_modules\\"))
-                    continue;
-                if (file1.Contains("\\bin\\"))
-                    continue;
-                if (file1.Contains("\\obj\\"))
-                    continue;
+                }
 
                 var file2 = path2 + file1.Substring(path1.Length);
 
@@ -50,12 +47,24 @@ namespace FoldersComparer
             Console.ReadLine();
         }
 
-        private static string GetHash(string file)
+        private static string? GetHash(string file)
         {
             var fileInfo = new FileInfo(file);
             if (!fileInfo.Exists)
                 return null;
+
+            if (IsTextFile(fileInfo))
+            {
+                var text = File.ReadAllText(file).Replace("\r\n", "\n").Trim();
+                return text.UseMd5().ComputeHashedString();
+            }
+
             return fileInfo.UseMd5().ComputeHashedString();
+        }
+
+        private static bool IsTextFile(FileInfo file)
+        {
+            return file.Name == "LICENSE" || textExtensions.Contains(file.Extension);
         }
     }
 }

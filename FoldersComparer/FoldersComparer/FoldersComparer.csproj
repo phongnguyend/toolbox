@@ -11,4 +11,13 @@
     <PackageReference Include="CryptographyHelper" Version="1.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update=".foldersignore">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update=".textextensions">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

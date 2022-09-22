@@ -1,0 +1,6 @@
+﻿.svn
+.git
+.vs
+node_modules
+bin
+obj
