@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-using System.Xml.Linq;
+﻿using HtmlAgilityPack;
 
 internal class Program
 {
@@ -36,6 +35,17 @@ internal class Program
             //"Microsoft."
         };
 
+        var cache = File.ReadAllLines("cache.csv").Select(x =>
+        {
+            var parts = x.Split(',');
+            var package = parts[0].Trim();
+            var version = parts[1].Trim();
+            var license = parts[2].Trim();
+
+            return new { package, version, license };
+
+        }).Where(x => !string.IsNullOrEmpty(x.license)).ToList();
+
         using (var fileStream = File.Open("packages.csv", FileMode.Create))
         {
             using (var streamWriter = new StreamWriter(fileStream))
@@ -47,7 +57,23 @@ internal class Program
                         continue;
                     }
 
-                    streamWriter.WriteLine($"{package.Name},{package.Version}, ,\"{package.Url}\",\"{package.Projects}\"");
+                    var license = cache.Where(x => x.package == package.Name && x.version == package.Version).FirstOrDefault()?.license;
+
+                    var foundCache = license != null;
+
+                    if (!foundCache)
+                    {
+                        license = GetLicense(package.Name, package.Version);
+                    }
+
+                    streamWriter.WriteLine($"{package.Name},{package.Version}, {license} ,\"{package.Url}\",\"{package.Projects}\"");
+
+                    Console.WriteLine($"{package.Name}, {package.Version}, {license}");
+
+                    if (!foundCache)
+                    {
+                        Thread.Sleep(2000);
+                    }
                 }
             }
         }
@@ -106,12 +132,41 @@ internal class Program
     private static string FormatVersion(string version)
     {
         if (version.StartsWith("^")
-            || version.StartsWith("~"))
+            || version.StartsWith("~")
+            || version.StartsWith("v"))
         {
             version = version.Substring(1);
         }
 
         return version;
+    }
+
+    private static string GetLicense(string packageName, string version)
+    {
+        version = FormatVersion(version);
+        string url = $"https://www.npmjs.com/package/{packageName}/v/{version}";
+        var web = new HtmlWeb();
+        var doc = web.Load(url);
+
+        var indexes = new int[] { 3, 4 };
+        var versionIndexes = new int[] { 1, 2, 3, 4, 5 };
+
+        foreach (var idx in indexes)
+        {
+            foreach (var versionIdx in versionIndexes)
+            {
+                var licenseIdx = versionIdx + 1;
+
+                if (doc.DocumentNode.SelectNodes($"//*[@id=\"top\"]/div[{idx}]/div[{versionIdx}]/h3")?.FirstOrDefault()?.InnerText == "Version"
+                    && doc.DocumentNode.SelectNodes($"//*[@id=\"top\"]/div[{idx}]/div[{versionIdx}]/p")?.FirstOrDefault()?.InnerText == version
+                    && doc.DocumentNode.SelectNodes($"//*[@id=\"top\"]/div[{idx}]/div[{licenseIdx}]/h3")?.FirstOrDefault()?.InnerText == "License")
+                {
+                    return doc.DocumentNode.SelectNodes($"//*[@id=\"top\"]/div[{idx}]/div[{licenseIdx}]/p")?.FirstOrDefault()?.InnerText ?? string.Empty;
+                }
+            }
+        }
+
+        return string.Empty;
     }
 }
 
