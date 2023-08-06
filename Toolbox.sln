@@ -5,9 +5,11 @@ VisualStudioVersion = 17.4.33403.182
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeleteFiles", "DeleteFiles\DeleteFiles.csproj", "{8990D60D-3203-48A7-B2C0-92A981A3EA1C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FindTexts", "FindTexts\FindTexts.csproj", "{A09659ED-EBB9-4ED1-81AB-A58EA15DEAE5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FindTexts", "FindTexts\FindTexts.csproj", "{A09659ED-EBB9-4ED1-81AB-A58EA15DEAE5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitHubApi", "GitHubApi\GitHubApi.csproj", "{103C8CED-20CB-41DF-BDB1-D4768405C39E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuplicateFiles", "DuplicateFiles\DuplicateFiles.csproj", "{4E41DE12-658A-418F-990A-4A7C9FDD2C72}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +29,10 @@ Global
 		{103C8CED-20CB-41DF-BDB1-D4768405C39E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{103C8CED-20CB-41DF-BDB1-D4768405C39E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{103C8CED-20CB-41DF-BDB1-D4768405C39E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E41DE12-658A-418F-990A-4A7C9FDD2C72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E41DE12-658A-418F-990A-4A7C9FDD2C72}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E41DE12-658A-418F-990A-4A7C9FDD2C72}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E41DE12-658A-418F-990A-4A7C9FDD2C72}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
