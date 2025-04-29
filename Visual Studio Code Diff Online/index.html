@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Monaco Diff Editor</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #1e1e1e;
+        font-family: "Fira Code", monospace;
+      }
+      #controls {
+        padding: 10px;
+        background: #252526;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+      #container {
+        height: calc(100% - 120px);
+        border-top: 1px solid #333;
+      }
+      select,
+      button,
+      input[type="file"] {
+        background: #3c3c3c;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-family: inherit;
+      }
+      input[type="file"] {
+        padding: 3px;
+      }
+      #dropzone {
+        border: 2px dashed #555;
+        padding: 10px;
+        border-radius: 6px;
+        background: #2d2d2d;
+        flex-grow: 1;
+        text-align: center;
+        cursor: pointer;
+        font-size: 14px;
+        min-width: 250px;
+      }
+      #dropzone.dragover {
+        border-color: #66f;
+        background: #3a3a3a;
+      }
+      #toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 6px;
+        display: none;
+        animation: fadeInOut 3s;
+      }
+      @keyframes fadeInOut {
+        0% {
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <label
+        >Original: <input type="file" id="file1" onchange="onFileChange()"
+      /></label>
+      <label
+        >Modified: <input type="file" id="file2" onchange="onFileChange()"
+      /></label>
+
+      <label>
+        Language:
+        <select id="language" onchange="updateLanguage()">
+          <option value="plaintext">Plain Text</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="python">Python</option>
+          <option value="cpp">C++</option>
+          <option value="csharp">C#</option>
+          <option value="java">Java</option>
+          <option value="html">HTML</option>
+          <option value="css">CSS</option>
+          <option value="json">JSON</option>
+          <option value="xml">XML</option>
+          <option value="markdown">Markdown</option>
+          <option value="shell">Shell Script</option>
+        </select>
+      </label>
+
+      <button onclick="compareSelectedFiles()">Compare</button>
+      <button onclick="toggleEditable()" id="toggleEditableBtn">
+        🔒 Readonly
+      </button>
+      <label>
+        <input
+          type="checkbox"
+          id="sideBySideToggle"
+          onchange="toggleViewMode()"
+          checked
+        />
+        Side-by-side view
+      </label>
+
+      <button onclick="downloadPatch()">Download .patch</button>
+
+      <button onclick="importPatch()">Import .patch</button>
+      <input
+        type="file"
+        id="patchFile"
+        style="display: none"
+        accept=".patch,.diff"
+        onchange="onPatchFileSelected()"
+      />
+
+      <label>
+        Theme:
+        <select id="theme" onchange="updateTheme()">
+          <option value="vs-dark">VS Dark</option>
+          <option value="vs-light">VS Light</option>
+          <option value="hc-black">High Contrast</option>
+          <option value="dracula">Dracula</option>
+          <option value="solarized-dark">Solarized Dark</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="dropzone">Drag and drop 2 files here (or select above)</div>
+
+    <div id="container"></div>
+    <div id="toast">Patch downloaded successfully!</div>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+    <script>
+      let diffEditor;
+      let originalModel, modifiedModel;
+      let originalFilename = "original.txt";
+      let modifiedFilename = "modified.txt";
+      let isEditable = false;
+
+      require.config({
+        paths: {
+          vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs",
+        },
+      });
+      require(["vs/editor/editor.main"], function () {
+        diffEditor = monaco.editor.createDiffEditor(
+          document.getElementById("container"),
+          {
+            theme: "vs-dark",
+            originalEditable: true,
+            readOnly: !isEditable,
+            renderSideBySide: true,
+            automaticLayout: true,
+          }
+        );
+
+        defineCustomThemes();
+        createEmptyModels();
+
+        const savedTheme = localStorage.getItem("preferredTheme") || "vs-dark";
+        const savedLanguage =
+          localStorage.getItem("preferredLanguage") || "plaintext";
+        const savedView = localStorage.getItem("sideBySideView");
+        const renderSideBySide = savedView !== "false";
+
+        document.getElementById("theme").value = savedTheme;
+        monaco.editor.setTheme(savedTheme);
+
+        document.getElementById("language").value = savedLanguage;
+        document.getElementById("sideBySideToggle").checked = renderSideBySide;
+        diffEditor.updateOptions({ renderSideBySide });
+      });
+
+      function createEmptyModels() {
+        originalModel = monaco.editor.createModel("", "plaintext");
+        modifiedModel = monaco.editor.createModel("", "plaintext");
+        diffEditor.setModel({
+          original: originalModel,
+          modified: modifiedModel,
+        });
+      }
+
+      async function compareSelectedFiles() {
+        const file1 = document.getElementById("file1").files[0];
+        const file2 = document.getElementById("file2").files[0];
+        if (!file1 || !file2) {
+          alert("Please select both files!");
+          return;
+        }
+        await loadFiles(file1, file2);
+      }
+
+      async function loadFiles(file1, file2) {
+        const [text1, text2] = await Promise.all([file1.text(), file2.text()]);
+        originalFilename = file1.name;
+        modifiedFilename = file2.name;
+
+        if (originalModel) originalModel.dispose();
+        if (modifiedModel) modifiedModel.dispose();
+
+        const detectedLanguage = detectLanguage(file1.name, file2.name);
+        document.getElementById("language").value = detectedLanguage;
+
+        originalModel = monaco.editor.createModel(text1, detectedLanguage);
+        modifiedModel = monaco.editor.createModel(text2, detectedLanguage);
+
+        diffEditor.setModel({
+          original: originalModel,
+          modified: modifiedModel,
+        });
+      }
+
+      const dropzone = document.getElementById("dropzone");
+
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("dragover");
+      });
+
+      dropzone.addEventListener("dragleave", () => {
+        dropzone.classList.remove("dragover");
+      });
+
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length !== 2) {
+          alert("Please drop exactly 2 files!");
+          return;
+        }
+        loadFiles(files[0], files[1]);
+      });
+
+      function onFileChange() {
+        const file1 = document.getElementById("file1").files[0];
+        const file2 = document.getElementById("file2").files[0];
+        if (file1 && file2) {
+          loadFiles(file1, file2);
+        }
+      }
+
+      function detectLanguage(name1, name2) {
+        const ext = (filename) => filename.split(".").pop().toLowerCase();
+        const map = {
+          js: "javascript",
+          ts: "typescript",
+          py: "python",
+          cpp: "cpp",
+          cc: "cpp",
+          c: "c",
+          cs: "csharp",
+          java: "java",
+          html: "html",
+          css: "css",
+          json: "json",
+          xml: "xml",
+          md: "markdown",
+          sh: "shell",
+          txt: "plaintext",
+        };
+        return map[ext(name2)] || map[ext(name1)] || "plaintext";
+      }
+
+      function updateLanguage() {
+        const selectedLang = document.getElementById("language").value;
+        if (originalModel)
+          monaco.editor.setModelLanguage(originalModel, selectedLang);
+        if (modifiedModel)
+          monaco.editor.setModelLanguage(modifiedModel, selectedLang);
+        localStorage.setItem("preferredLanguage", selectedLang);
+      }
+
+      function toggleEditable() {
+        isEditable = !isEditable;
+        diffEditor.updateOptions({
+          readOnly: !isEditable,
+          originalEditable: isEditable,
+        });
+        document.getElementById("toggleEditableBtn").innerText = isEditable
+          ? "✏️ Editable"
+          : "🔒 Readonly";
+      }
+
+      function updateTheme() {
+        const selectedTheme = document.getElementById("theme").value;
+        monaco.editor.setTheme(selectedTheme);
+        localStorage.setItem("preferredTheme", selectedTheme);
+      }
+
+      function defineCustomThemes() {
+        monaco.editor.defineTheme("dracula", {
+          base: "vs-dark",
+          inherit: true,
+          rules: [
+            { token: "", background: "282a36", foreground: "f8f8f2" },
+            { token: "comment", foreground: "6272a4" },
+          ],
+          colors: {
+            "editor.background": "#282a36",
+            "editorLineNumber.foreground": "#6272a4",
+          },
+        });
+
+        monaco.editor.defineTheme("solarized-dark", {
+          base: "vs-dark",
+          inherit: true,
+          rules: [
+            { token: "", background: "002b36", foreground: "839496" },
+            { token: "comment", foreground: "586e75" },
+          ],
+          colors: {
+            "editor.background": "#002b36",
+            "editorLineNumber.foreground": "#586e75",
+          },
+        });
+      }
+
+      function toggleViewMode() {
+        const sideBySide = document.getElementById("sideBySideToggle").checked;
+        if (diffEditor) {
+          diffEditor.updateOptions({ renderSideBySide: sideBySide });
+          localStorage.setItem("sideBySideView", sideBySide ? "true" : "false");
+        }
+      }
+
+      function showToast() {
+        const toast = document.getElementById("toast");
+        toast.style.display = "block";
+        setTimeout(() => (toast.style.display = "none"), 3000);
+      }
+
+      async function sha1(str) {
+        const utf8 = new TextEncoder().encode(str);
+        const hash = await crypto.subtle.digest("SHA-1", utf8);
+        return [...new Uint8Array(hash)]
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      async function generateUnifiedDiff(oldName, newName, oldLines, newLines) {
+        const oldContent = oldLines.join("\n");
+        const newContent = newLines.join("\n");
+        const oldHash = await sha1(`blob ${oldContent.length}\0${oldContent}`);
+        const newHash = await sha1(`blob ${newContent.length}\0${newContent}`);
+
+        let sameLines = oldLines.filter(
+          (line, idx) => line === newLines[idx]
+        ).length;
+        const similarity =
+          sameLines / Math.max(oldLines.length, newLines.length);
+
+        let diff = "";
+        if (similarity > 0.8 && oldName !== newName) {
+          diff += `rename from ${oldName}\nrename to ${newName}\n`;
+        }
+
+        diff += `diff --git a/${oldName} b/${newName}\n`;
+        diff += `index ${oldHash.slice(0, 7)}..${newHash.slice(0, 7)} 100644\n`;
+        diff += `--- a/${oldName}\n`;
+        diff += `+++ b/${newName}\n`;
+
+        let i = 0,
+          j = 0;
+        while (i < oldLines.length || j < newLines.length) {
+          const startOld = i,
+            startNew = j;
+          while (
+            i < oldLines.length &&
+            j < newLines.length &&
+            oldLines[i] === newLines[j]
+          ) {
+            i++;
+            j++;
+          }
+          if (i === oldLines.length && j === newLines.length) break;
+          const preContext = oldLines
+            .slice(Math.max(0, startOld - 3), startOld)
+            .map((line) => " " + line);
+          const hunkLines = [...preContext];
+          let oldCount = 0,
+            newCount = 0;
+          while (i < oldLines.length || j < newLines.length) {
+            if (oldLines[i] !== newLines[j]) {
+              if (i < oldLines.length) {
+                hunkLines.push("-" + oldLines[i++]);
+                oldCount++;
+              }
+              if (j < newLines.length) {
+                hunkLines.push("+" + newLines[j++]);
+                newCount++;
+              }
+            } else break;
+          }
+          const postContext = oldLines
+            .slice(i, i + 3)
+            .map((line) => " " + line);
+          hunkLines.push(...postContext);
+          diff += `@@ -${startOld + 1},${
+            oldCount + preContext.length + postContext.length
+          } +${startNew + 1},${
+            newCount + preContext.length + postContext.length
+          } @@\n`;
+          diff += hunkLines.join("\n") + "\n";
+        }
+        return diff;
+      }
+
+      async function downloadPatch() {
+        if (!originalModel || !modifiedModel) {
+          alert("No diff to export!");
+          return;
+        }
+        const originalLines = originalModel.getLinesContent();
+        const modifiedLines = modifiedModel.getLinesContent();
+        const patch = await generateUnifiedDiff(
+          originalFilename,
+          modifiedFilename,
+          originalLines,
+          modifiedLines
+        );
+
+        const blob = new Blob([patch], { type: "text/x-patch;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        const patchName =
+          originalFilename.replace(/\.[^/.]+$/, "") +
+          "_" +
+          modifiedFilename.replace(/\.[^/.]+$/, "") +
+          ".patch";
+        a.download = patchName;
+        a.click();
+        showToast();
+      }
+
+      function importPatch() {
+        document.getElementById("patchFile").click();
+      }
+
+      async function onPatchFileSelected() {
+        const file = document.getElementById("patchFile").files[0];
+        if (!file) return;
+        const text = await file.text();
+        loadPatch(text);
+      }
+
+      function loadPatch(patchText) {
+        const lines = patchText.split("\n");
+
+        let original = [];
+        let modified = [];
+        let readingHunk = false;
+
+        for (let line of lines) {
+          if (line.startsWith("@@")) {
+            readingHunk = true;
+            continue;
+          }
+          if (!readingHunk) continue;
+
+          if (line.startsWith("-")) {
+            original.push(line.substring(1));
+          } else if (line.startsWith("+")) {
+            modified.push(line.substring(1));
+          } else if (line.startsWith(" ")) {
+            const content = line.substring(1);
+            original.push(content);
+            modified.push(content);
+          }
+        }
+
+        // Gán vào Monaco Editor
+        if (originalModel) originalModel.dispose();
+        if (modifiedModel) modifiedModel.dispose();
+
+        const detectedLanguage = "plaintext"; // Patch không biết rõ loại file => để mặc định
+
+        originalModel = monaco.editor.createModel(
+          original.join("\n"),
+          detectedLanguage
+        );
+        modifiedModel = monaco.editor.createModel(
+          modified.join("\n"),
+          detectedLanguage
+        );
+
+        diffEditor.setModel({
+          original: originalModel,
+          modified: modifiedModel,
+        });
+
+        // Reset filename giả định
+        originalFilename = "imported_original.txt";
+        modifiedFilename = "imported_modified.txt";
+      }
+    </script>
+  </body>
+</html>
