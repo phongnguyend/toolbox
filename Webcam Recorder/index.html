@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Quay Video Webcam</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    video {
+      border: 2px solid #333;
+      border-radius: 10px;
+      width: 480px;
+      height: 360px;
+    }
+    button {
+      margin: 10px 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎥 Ứng dụng quay video từ Webcam</h2>
+
+  <video id="preview" autoplay muted></video><br>
+
+  <button id="startCamera">Bật Camera</button>
+  <button id="stopCamera" disabled>Tắt Camera</button>
+  <button id="startRecording" disabled>Bắt đầu Quay</button>
+  <button id="stopRecording" disabled>Dừng Quay</button>
+  <a id="downloadLink" style="display:none;" download="video.webm">📥 Tải Video</a>
+
+  <p id="startTimeDisplay" style="font-size: 18px; font-weight: bold;"></p>
+  <p id="recordingTimer" style="font-size: 18px; color: red;"></p>
+
+  <script>
+    let stream;
+    let mediaRecorder;
+    let recordedChunks = [];
+    let timerInterval;
+
+    const preview = document.getElementById('preview');
+    const startCameraBtn = document.getElementById('startCamera');
+    const stopCameraBtn = document.getElementById('stopCamera');
+    const startRecordingBtn = document.getElementById('startRecording');
+    const stopRecordingBtn = document.getElementById('stopRecording');
+    const downloadLink = document.getElementById('downloadLink');
+    const startTimeDisplay = document.getElementById('startTimeDisplay');
+    const recordingTimer = document.getElementById('recordingTimer');
+
+    startCameraBtn.onclick = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        preview.srcObject = stream;
+        startRecordingBtn.disabled = false;
+        startCameraBtn.disabled = true;
+        stopCameraBtn.disabled = false;
+      } catch (err) {
+        alert('Không thể truy cập webcam: ' + err);
+      }
+    };
+
+    stopCameraBtn.onclick = () => {
+      // Dừng tất cả các track của stream
+      if (stream) {
+        stream.getTracks().forEach(track => {
+          track.stop();
+        });
+      }
+      
+      // Xóa stream khỏi video element
+      preview.srcObject = null;
+      
+      // Reset giao diện
+      startCameraBtn.disabled = false;
+      stopCameraBtn.disabled = true;
+      startRecordingBtn.disabled = true;
+      
+      // Nếu đang quay, dừng ghi hình
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        stopRecordingBtn.disabled = true;
+      }
+      
+      // Xóa thời gian hiển thị
+      startTimeDisplay.textContent = '';
+    };
+
+    startRecordingBtn.onclick = () => {
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) {
+          recordedChunks.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        downloadLink.href = url;
+        downloadLink.style.display = 'inline';
+
+        // Dừng đếm thời gian
+        clearInterval(timerInterval);
+        recordingTimer.textContent = '';
+      };
+
+      // Hiển thị thời gian bắt đầu
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('vi-VN');
+      startTimeDisplay.textContent = `⏱ Bắt đầu quay lúc: ${timeStr}`;
+
+      // Bắt đầu đồng hồ đếm
+      let seconds = 0;
+      timerInterval = setInterval(() => {
+        seconds++;
+        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const secs = String(seconds % 60).padStart(2, '0');
+        recordingTimer.textContent = `⏳ Đang quay: ${mins}:${secs}`;
+      }, 1000);
+
+      mediaRecorder.start();
+      startRecordingBtn.disabled = true;
+      stopRecordingBtn.disabled = false;
+      downloadLink.style.display = 'none';
+    };
+
+    stopRecordingBtn.onclick = () => {
+      mediaRecorder.stop();
+      startRecordingBtn.disabled = false;
+      stopRecordingBtn.disabled = true;
+    };
+  </script>
+</body>
+</html>
