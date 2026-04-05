@@ -6,8 +6,7 @@ class Program
     {
         //args = "analyze --greater-than-or-equal \"2024-01-01\" --less-than \"2024-02-01\"".Split(' ');
         //args = "analyze --less-than-or-equal \"2026-02-01\"".Split(' ');
-        //args = "delete --less-than-or-equal \"2026-02-01\"".Split(' ');
-
+        //args = "delete --less-than \"2026-03-01\"".Split(' ');
         args = "analyze".Split(' ');
 
         var parsedArgs = CommandLineParser.ParseParameters(args);
@@ -33,8 +32,6 @@ class Program
 
             return;
         }
-
-        // ... rest of the code
 
         string tempPath = Path.GetTempPath();
 
@@ -62,7 +59,7 @@ class Program
 
     static void HandleAnalyzeCommand(string tempPath, ParsedArguments args)
     {
-        Console.WriteLine($"Scanning temp folder: {tempPath}");
+        Console.WriteLine($"Analyzing temp folder: {tempPath}");
         Console.WriteLine();
 
         var files = Directory
