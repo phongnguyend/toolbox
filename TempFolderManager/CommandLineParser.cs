@@ -1,4 +1,4 @@
-﻿namespace AnalyzeTempFolder;
+﻿namespace TempFolderManager;
 
 public record ParsedArguments(string Command, DateTime? LessThan, DateTime? GreaterThan, DateTime? LessThanOrEqual, DateTime? GreaterThanOrEqual, List<string> Errors);
 
