@@ -55,11 +55,11 @@ static string? FindPlugin(string exe)
 
 static void ShowHelp()
 {
-    Console.WriteLine("phongctrl - extensible CLI");
+    Console.WriteLine("phong - extensible CLI");
     Console.WriteLine();
     Console.WriteLine("Usage:");
-    Console.WriteLine("  phongctrl <plugin> [args]");
+    Console.WriteLine("  phong <plugin> [args]");
     Console.WriteLine();
     Console.WriteLine("Example:");
-    Console.WriteLine("  phongctrl tfm analyze");
+    Console.WriteLine("  phong tfm analyze");
 }
