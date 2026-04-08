@@ -11,9 +11,23 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitHubApi", "GitHubApi\GitH
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuplicateFiles", "DuplicateFiles\DuplicateFiles.csproj", "{4E41DE12-658A-418F-990A-4A7C9FDD2C72}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TempFolderManager", "TempFolderManager\TempFolderManager.csproj", "{81ED1726-4F7F-9588-2762-EA7DF27445DC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Toolbox.CoreCliTool", "Toolbox.CoreCliTool\Toolbox.CoreCliTool.csproj", "{36258E88-C6E3-7CA7-C459-1D694CCBC408}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TempFolderManager.CliTool", "TempFolderManager.CliTool\TempFolderManager.CliTool.csproj", "{4789F465-16E9-469A-BD0A-297EDED6A885}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Toolbox.Plugins.TempFolderManager", "Toolbox.Plugins.TempFolderManager\Toolbox.Plugins.TempFolderManager.csproj", "{A97C2041-5FAC-79FE-3E96-4115B3CBDE79}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Toolbox.Plugins.TempFolderManager.CliTool", "Toolbox.Plugins.TempFolderManager.CliTool\Toolbox.Plugins.TempFolderManager.CliTool.csproj", "{C5BBA972-8E0A-18DC-ADD2-BA42627D0458}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{FD8A6AC7-A271-470F-93C7-54F0718E1C91}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{AFF51B7D-B36D-4069-B6C1-230B52B14244}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7DA201C8-5E94-42AB-973A-9836A2761F7C}"
+	ProjectSection(SolutionItems) = preProject
+		commands.txt = commands.txt
+		Directory.Build.props = Directory.Build.props
+		global.json = global.json
+		notes.txt = notes.txt
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -37,17 +51,26 @@ Global
 		{4E41DE12-658A-418F-990A-4A7C9FDD2C72}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4E41DE12-658A-418F-990A-4A7C9FDD2C72}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4E41DE12-658A-418F-990A-4A7C9FDD2C72}.Release|Any CPU.Build.0 = Release|Any CPU
-		{81ED1726-4F7F-9588-2762-EA7DF27445DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{81ED1726-4F7F-9588-2762-EA7DF27445DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{81ED1726-4F7F-9588-2762-EA7DF27445DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{81ED1726-4F7F-9588-2762-EA7DF27445DC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4789F465-16E9-469A-BD0A-297EDED6A885}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4789F465-16E9-469A-BD0A-297EDED6A885}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4789F465-16E9-469A-BD0A-297EDED6A885}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4789F465-16E9-469A-BD0A-297EDED6A885}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36258E88-C6E3-7CA7-C459-1D694CCBC408}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36258E88-C6E3-7CA7-C459-1D694CCBC408}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36258E88-C6E3-7CA7-C459-1D694CCBC408}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36258E88-C6E3-7CA7-C459-1D694CCBC408}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A97C2041-5FAC-79FE-3E96-4115B3CBDE79}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A97C2041-5FAC-79FE-3E96-4115B3CBDE79}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A97C2041-5FAC-79FE-3E96-4115B3CBDE79}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A97C2041-5FAC-79FE-3E96-4115B3CBDE79}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5BBA972-8E0A-18DC-ADD2-BA42627D0458}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5BBA972-8E0A-18DC-ADD2-BA42627D0458}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5BBA972-8E0A-18DC-ADD2-BA42627D0458}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5BBA972-8E0A-18DC-ADD2-BA42627D0458}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{36258E88-C6E3-7CA7-C459-1D694CCBC408} = {FD8A6AC7-A271-470F-93C7-54F0718E1C91}
+		{A97C2041-5FAC-79FE-3E96-4115B3CBDE79} = {AFF51B7D-B36D-4069-B6C1-230B52B14244}
+		{C5BBA972-8E0A-18DC-ADD2-BA42627D0458} = {AFF51B7D-B36D-4069-B6C1-230B52B14244}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4D10FD3F-20CF-4190-B090-76F724575BCC}

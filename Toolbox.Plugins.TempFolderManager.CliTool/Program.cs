@@ -20,7 +20,7 @@ class Program
             }
 
             Console.WriteLine();
-            Console.WriteLine("Usage: AnalyzeTempFolder <command> [options]");
+            Console.WriteLine("Usage: tfm <command> [options]");
             Console.WriteLine("Commands:");
             Console.WriteLine("  analyze - Analyze temp folder statistics");
             Console.WriteLine("  delete - Delete files matching criteria");
@@ -44,7 +44,7 @@ class Program
                 HandleDeleteCommand(tempPath, parsedArgs);
                 break;
             default:
-                Console.WriteLine("Usage: AnalyzeTempFolder <command> [options]");
+                Console.WriteLine("Usage: tfm <command> [options]");
                 Console.WriteLine("Commands:");
                 Console.WriteLine("  analyze - Analyze temp folder statistics");
                 Console.WriteLine("  delete - Delete files matching criteria");
