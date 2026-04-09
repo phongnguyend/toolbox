@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>📺 Xem Video Trực Tiếp - Webcam Recorder</title>
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@10.0.0/dist/browser/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr-protocol-msgpack@10.0.0/dist/browser/signalr-protocol-msgpack.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 10px;
+    }
+    .section {
+      margin: 20px 0;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #007bff;
+      margin: 15px 0 10px 0;
+    }
+    .stream-list, .archive-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 15px;
+      margin: 10px 0;
+    }
+    .stream-card, .archive-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      background: #f9f9f9;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .stream-card:hover, .archive-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateY(-2px);
+    }
+    .stream-card.live::before {
+      content: "🔴 LIVE";
+      display: inline-block;
+      background: #ff4444;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .stream-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+      margin: 5px 0;
+      word-break: break-word;
+    }
+    .stream-info {
+      font-size: 12px;
+      color: #666;
+      margin: 5px 0;
+    }
+    .viewer-section {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 1000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .viewer-section.active {
+      display: flex;
+    }
+    .viewer-container {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 90%;
+      max-height: 90%;
+      overflow: auto;
+    }
+    .viewer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .viewer-title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+    .close-btn {
+      background: #ff4444;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .close-btn:hover {
+      background: #cc0000;
+    }
+    canvas {
+      border: 2px solid #333;
+      border-radius: 8px;
+      max-width: 100%;
+      height: auto;
+      background: #000;
+    }
+    .status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    .empty-state-icon {
+      font-size: 48px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📺 Xem Video Trực Tiếp</h1>
+    
+    <div class="section">
+      <div class="section-title">🔴 Trực Tiếp Hiện Tại</div>
+      <div id="liveStreams" class="stream-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">📻</div>
+          <p>Không có luồng trực tiếp nào</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📹 Thư Viện Ghi Hình (Xem Lại)</div>
+      <div id="archivedStreams" class="archive-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">🎬</div>
+          <p>Chưa có video ghi hình</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Viewer Modal -->
+  <div id="viewerSection" class="viewer-section">
+    <div class="viewer-container">
+      <div class="viewer-header">
+        <div>
+          <div id="viewerLiveIndicator" style="display: none; color: #ff4444; font-weight: bold;">🔴 ĐANG TRỰC TIẾP</div>
+          <div id="viewerTitle" class="viewer-title"></div>
+        </div>
+        <button class="close-btn" onclick="closeViewer()">Đóng</button>
+      </div>
+      <canvas id="videoCanvas"></canvas>
+      <div id="viewerStatus" class="status info">Đang kết nối...</div>
+    </div>
+  </div>
+
+  <script>
+    const HUB_URL = 'http://localhost:5000/hub/video-stream';
+    let connection = null;
+    let currentSessionId = null;
+    let videoChunks = [];
+    let canvas = null;
+    let ctx = null;
+    let videoElement = null;
+    let isBootstrappingStream = false;
+
+    // Initialize SignalR connection
+    function initConnection() {
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl(HUB_URL)
+        .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
+        .withAutomaticReconnect([0, 1000, 3000, 5000])
+        .build();
+
+      connection.on("StreamStarted", (sessionId, title) => {
+        console.log("New stream started:", sessionId, title);
+        loadLiveStreams();
+      });
+
+      connection.on("StreamEnded", (filename) => {
+        console.log("Stream ended, saved as:", filename);
+        updateViewerStatus(`Stream ended. Saved as: ${filename}`);
+        loadLiveStreams();
+        loadArchivedStreams();
+      });
+
+      connection.on("StreamInfo", (info) => {
+        console.log("Stream info:", info);
+        document.getElementById('viewerTitle').textContent = `${info.title} ${info.isLive ? '(Trực Tiếp)' : '(Ghi Hình)'}`;
+        document.getElementById('viewerLiveIndicator').style.display = info.isLive ? 'block' : 'none';
+        updateViewerStatus(`Connected to: ${info.title}`);
+      });
+
+      connection.on("ChunkReceived", (chunkIndex, chunkSize) => {
+        console.log(`Chunk ${chunkIndex} received (${chunkSize} bytes)`);
+        updateViewerStatus(`📤 Streaming chunk ${chunkIndex}...`);
+      });
+
+      connection.on("ReceiveChunk", (bytes) => {
+        try {
+          // Ignore chunks during bootstrap phase
+          if (isBootstrappingStream) {
+            console.debug("[Viewer] Ignoring chunk during bootstrap phase");
+            return;
+          }
+          
+          // Ignore chunks if we're not viewing a stream
+          if (!currentSessionId) {
+            console.debug("[Viewer] Ignoring chunk, no active session");
+            return;
+          }
+          
+          if (!bytes || bytes.length === 0) {
+            console.warn("[Viewer] Received empty chunk, skipping");
+            return;
+          }
+          
+          console.log("[Viewer] Received live chunk for session:", currentSessionId, "size:", bytes.length, "bytes");
+          
+          // Process chunk immediately - bootstrap is now handled via API endpoint
+          videoChunks.push(bytes);
+          addChunkToBuffer();
+          
+          // Ensure playback
+          if (videoElement && videoElement.paused) {
+            videoElement.play().catch(err => {
+              console.debug('[Viewer] Play error on chunk arrival:', err.message);
+            });
+          }
+        } catch (err) {
+          console.error("[Viewer] Error processing chunk:", err);
+        }
+      });
+
+      connection.on("Error", (message) => {
+        console.error("Hub error:", message);
+        updateViewerStatus(`Error: ${message}`, 'error');
+      });
+
+      connection.onreconnecting(() => {
+        console.log("Attempting to reconnect to server...");
+        updateViewerStatus("⏳ Reconnecting...", 'info');
+      });
+
+      connection.onreconnected(() => {
+        console.log("Reconnected to server");
+        updateViewerStatus("✅ Connected!", 'success');
+        loadLiveStreams();
+        loadArchivedStreams();
+      });
+
+      connection.onclose(() => {
+        console.log("Connection closed");
+        updateViewerStatus("❌ Disconnected from server", 'error');
+      });
+
+      connection.start()
+        .then(() => {
+          console.log("Connected to server");
+          updateViewerStatus("✅ Connected!", 'success');
+          loadLiveStreams();
+          loadArchivedStreams();
+        })
+        .catch(err => {
+          console.error("Connection failed:", err);
+          updateViewerStatus(`❌ Cannot connect to server: ${err.message}`, 'error');
+          // Retry after 5 seconds
+          setTimeout(() => initConnection(), 5000);
+        });
+    }
+
+    let mediaSource = null;
+    let sourceBuffer = null;
+
+    // Codec candidates in priority order
+    const CODEC_CANDIDATES = [
+      'video/webm; codecs="vp8,opus"',
+      'video/webm; codecs="vp9,opus"',
+      'video/webm; codecs="vp8"',
+      'video/webm; codecs="vp9"',
+      'video/webm'
+    ];
+
+    function getSupportedCodec() {
+      for (const codec of CODEC_CANDIDATES) {
+        if (MediaSource.isTypeSupported(codec)) {
+          console.log('[Viewer] Using codec:', codec);
+          return codec;
+        }
+      }
+      return null;
+    }
+
+    function initMediaSource() {
+      if (!videoElement) {
+        console.warn('[Viewer] Video element not found, cannot initialize MediaSource');
+        return;
+      }
+
+      const codec = getSupportedCodec();
+      if (!codec) {
+        updateViewerStatus('❌ No supported codec found for WebM playback', 'error');
+        return;
+      }
+      
+      console.log('[Viewer] Initializing MediaSource with codec:', codec);
+      
+      mediaSource = new MediaSource();
+      
+      const onSourceOpen = () => {
+        console.log('[Viewer] MediaSource opened successfully');
+        
+        try {
+          sourceBuffer = mediaSource.addSourceBuffer(codec);
+          sourceBuffer.mode = 'sequence';
+          
+          sourceBuffer.addEventListener('updateend', () => {
+            console.debug('[Viewer] SourceBuffer updateend, processing further chunks');
+            addChunkToBuffer();
+            
+            // Try to play when buffer has data
+            if (videoElement && videoElement.paused && videoChunks.length > 0) {
+              videoElement.play().catch(err => {
+                console.debug('[Viewer] Play error on buffer update:', err.message);
+              });
+            }
+          });
+
+          console.log('[Viewer] SourceBuffer created and ready');
+          addChunkToBuffer();
+        } catch (err) {
+          console.error('[Viewer] Error creating SourceBuffer:', err);
+          updateViewerStatus('❌ Cannot play stream: ' + err.message, 'error');
+        }
+      };
+      
+      mediaSource.addEventListener('sourceopen', onSourceOpen);
+      
+      try {
+        const objectUrl = URL.createObjectURL(mediaSource);
+        videoElement.src = objectUrl;
+        console.log('[Viewer] MediaSource object URL created');
+      } catch (err) {
+        console.error('[Viewer] Error setting up MediaSource:', err);
+      }
+    }
+
+    function addChunkToBuffer() {
+      if (!sourceBuffer || !mediaSource) return false;
+      if (sourceBuffer.updating || videoChunks.length === 0) return false;
+      if (mediaSource.readyState !== 'open') return false;
+
+      try {
+        const chunk = videoChunks.shift();
+        if (!chunk?.length) return false;
+        
+        if (!(chunk instanceof Uint8Array)) {
+          console.warn('[Viewer] Invalid chunk type, expected Uint8Array');
+          return false;
+        }
+        
+        sourceBuffer.appendBuffer(chunk);
+        const bufferSize = videoChunks.reduce((sum, c) => sum + c.length, 0);
+        updateViewerStatus(`📤 Streaming... (Buffer: ${videoChunks.length} chunks, ${(bufferSize / 1024).toFixed(1)}KB)`);
+        
+        // Try to play video when data arrives
+        if (videoElement && videoElement.paused) {
+          videoElement.play().catch(err => {
+            console.debug('[Viewer] Play deferred:', err.message);
+          });
+        }
+        
+        return true;
+      } catch (err) {
+        console.error('[Viewer] Error appending buffer:', err);
+        updateViewerStatus('❌ Buffer error: ' + err.message, 'error');
+        return false;
+      }
+    }
+
+    function playVideoChunks() {
+      if (!videoElement) return;
+
+      try {
+        if (!mediaSource) {
+          initMediaSource();
+        }
+        videoElement.play().catch(err => {
+          console.warn('[Viewer] Play deferred until data arrives:', err.message);
+        });
+      } catch (err) {
+        console.error("[Viewer] Error playing video:", err);
+      }
+    }
+
+
+
+    async function loadLiveStreams() {
+      if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+        console.log("Not connected, skipping load live streams");
+        return;
+      }
+
+      try {
+        const streams = await connection.invoke("GetAvailableStreams");
+        const liveStreams = streams.filter(s => s.isLive);
+        const container = document.getElementById('liveStreams');
+
+        if (liveStreams.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📻</div>
+              <p>Không có luồng trực tiếp nào</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = liveStreams.map(stream => `
+          <div class="stream-card live" onclick="viewLiveStream('${stream.sessionId}')">
+            <div class="stream-title">${stream.title}</div>
+            <div class="stream-info">Bắt đầu: ${new Date(stream.createdAt).toLocaleString('vi-VN')}</div>
+            <button onclick="viewLiveStream('${stream.sessionId}'); event.stopPropagation();">👁️ Xem Trực Tiếp</button>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error("Error loading live streams:", err);
+      }
+    }
+
+    async function loadArchivedStreams() {
+      if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+        console.log("Not connected, skipping load archived streams");
+        return;
+      }
+
+      try {
+        const videos = await connection.invoke("GetArchivedStreams");
+        const container = document.getElementById('archivedStreams');
+
+        if (videos.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">🎬</div>
+              <p>Chưa có video ghi hình</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = videos.map(video => `
+          <div class="archive-card" onclick="viewArchivedVideo('${video.filename}')">
+            <div class="stream-title">${video.filename.replace('.webm', '')}</div>
+            <div class="stream-info">Ngày: ${new Date(video.createdAt).toLocaleString('vi-VN')}</div>
+            <button onclick="viewArchivedVideo('${video.filename}'); event.stopPropagation();">▶️ Phát</button>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error("Error loading archived streams:", err);
+      }
+    }
+
+    function viewLiveStream(sessionId) {
+      if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+        updateViewerStatus('❌ Not connected to server', 'error');
+        return;
+      }
+
+      // Set bootstrap flag to prevent ReceiveChunk during initialization
+      isBootstrappingStream = true;
+
+      // Set new session and clear all old data
+      currentSessionId = sessionId;
+      videoChunks = [];
+      
+      // Clean up old MediaSource if it exists
+      if (mediaSource) {
+        try {
+          if (sourceBuffer) {
+            try {
+              if (!sourceBuffer.updating) {
+                sourceBuffer.abort();
+              }
+            } catch (e) {
+              console.warn('[Viewer] Error aborting old sourceBuffer:', e);
+            }
+            sourceBuffer = null;
+          }
+          if (mediaSource.src) {
+            try {
+              URL.revokeObjectURL(mediaSource.src);
+            } catch (e) {
+              console.warn('[Viewer] Error revoking old ObjectURL:', e);
+            }
+          }
+        } catch (e) {
+          console.warn('[Viewer] Error cleaning up old stream:', e);
+        }
+        mediaSource = null;
+      }
+      
+      // Create fresh video element
+      videoElement = document.createElement('video');
+      videoElement.autoplay = true;
+      videoElement.muted = true;
+      videoElement.controls = true;
+      videoElement.style.width = '100%';
+      videoElement.style.borderRadius = '8px';
+      
+      // Replace canvas with video element
+      const viewer = document.getElementById('viewerSection');
+      const container = viewer.querySelector('.viewer-container');
+      const oldCanvas = container.querySelector('canvas');
+      if (oldCanvas) {
+        oldCanvas.replaceWith(videoElement);
+      }
+      
+      viewer.classList.add('active');
+
+      updateViewerStatus('⏳ Kết nối đến luồng...');
+
+      // Initialize MediaSource - this will set up the video stream
+      initMediaSource();
+
+      // Clear chunks before joining to ensure no stale data
+      videoChunks = [];
+      
+      // Fetch bootstrap chunks via HTTP API BEFORE joining to avoid race condition
+      console.log('[Viewer] Fetching bootstrap chunks for session:', sessionId);
+      fetch(`http://localhost:5000/api/video/bootstrap/${sessionId}`)
+        .then(response => {
+          if (!response.ok) {
+            console.log('[Viewer] No bootstrap data available (', response.status, ')');
+            return null;
+          }
+          return response.arrayBuffer();
+        })
+        .then(data => {
+          if (!currentSessionId || currentSessionId !== sessionId) {
+            console.log('[Viewer] Bootstrap fetch completed but session changed, discarding data');
+            return;
+          }
+          
+          if (data && data.byteLength > 0) {
+            const bootstrapBytes = new Uint8Array(data);
+            console.log('[Viewer] Bootstrap data received:', bootstrapBytes.length, 'bytes');
+            updateViewerStatus(`📥 Loading cached stream... (${(bootstrapBytes.length / 1024).toFixed(1)}KB)`);
+            
+            // Process bootstrap as regular chunks
+            videoChunks.push(bootstrapBytes);
+
+            console.log('[Viewer] Bootstrap data added to buffer, buffer has', videoChunks.length, 'chunks');
+            addChunkToBuffer();
+          } else {
+            console.log('[Viewer] Bootstrap fetch returned empty data');
+          }
+          
+          // Bootstrap chunks are now in buffer, safe to accept live chunks
+          console.log('[Viewer] Bootstrap processing complete, enabling live chunks');
+          isBootstrappingStream = false;
+          
+          // NOW join the stream for live chunks (after bootstrap is processed)
+          if (currentSessionId === sessionId) {
+            console.log('[Viewer] Requesting to join stream:', sessionId);
+            connection.invoke("JoinStream", sessionId).then(() => {
+              console.log('[Viewer] Successfully joined stream:', sessionId);
+              if (videoElement) {
+                videoElement.play().catch(err => {
+                  console.debug('[Viewer] Initial play attempt deferred:', err.message);
+                });
+              }
+            }).catch(err => {
+              console.error("[Viewer] Error joining stream:", err);
+              updateViewerStatus(`❌ Lỗi: ${err.message}`, 'error');
+            });
+          }
+        })
+        .catch(err => {
+          console.warn('[Viewer] Error fetching bootstrap chunks:', err);
+          // Continue anyway - stream will start playing when live chunks arrive
+          // Disable bootstrap mode so live chunks are accepted
+          if (currentSessionId === sessionId) {
+            console.log('[Viewer] Bootstrap fetch failed, enabling live chunks anyway');
+            isBootstrappingStream = false;
+            
+            // Join stream even if bootstrap failed
+            connection.invoke("JoinStream", sessionId).then(() => {
+              console.log('[Viewer] Successfully joined stream (after bootstrap failure):', sessionId);
+              if (videoElement) {
+                videoElement.play().catch(err => {
+                  console.debug('[Viewer] Play attempt after bootstrap failure deferred:', err.message);
+                });
+              }
+            }).catch(err => {
+              console.error("[Viewer] Error joining stream:", err);
+              updateViewerStatus(`❌ Lỗi: ${err.message}`, 'error');
+            });
+          }
+        });
+    }
+
+    function viewArchivedVideo(filename) {
+      currentSessionId = null;
+      videoChunks = [];
+
+      document.getElementById('viewerTitle').textContent = filename.replace('.webm', '');
+      document.getElementById('viewerLiveIndicator').style.display = 'none';
+
+      const viewer = document.getElementById('viewerSection');
+      viewer.classList.add('active');
+
+      updateViewerStatus('⏳ Đang tải video...');
+
+      // Clean up old MediaSource if exists
+      if (mediaSource) {
+        try {
+          if (sourceBuffer) {
+            try {
+              if (!sourceBuffer.updating) {
+                sourceBuffer.abort();
+              }
+            } catch (e) {
+              console.warn('[Viewer] Error aborting old sourceBuffer:', e);
+            }
+            sourceBuffer = null;
+          }
+        } catch (e) {
+          console.warn('[Viewer] Error cleaning up old MediaSource:', e);
+        }
+        mediaSource = null;
+      }
+
+      // Create a video element to play archived video
+      videoElement = document.createElement('video');
+      videoElement.src = `http://localhost:5000/api/video/${filename}`;
+      videoElement.controls = true;
+      videoElement.autoplay = false;
+      videoElement.style.width = '100%';
+      videoElement.style.borderRadius = '8px';
+
+      // Event listeners for better UX
+      videoElement.addEventListener('loadstart', () => {
+        console.log('[Archived] Video loading started');
+      });
+
+      videoElement.addEventListener('canplay', () => {
+        console.log('[Archived] Video ready to play');
+        updateViewerStatus(`✅ Sẵn sàng phát - Kéo để xem lại (${Math.floor(videoElement.duration)}s)`, 'success');
+      });
+
+      videoElement.addEventListener('play', () => {
+        console.log('[Archived] Video playing');
+        updateViewerStatus('▶️ Đang phát...', 'info');
+      });
+
+      videoElement.addEventListener('pause', () => {
+        console.log('[Archived] Video paused');
+        updateViewerStatus(`⏸️ Tạm dừng (${Math.floor(videoElement.currentTime)}s / ${Math.floor(videoElement.duration)}s)`, 'info');
+      });
+
+      videoElement.addEventListener('seeking', () => {
+        console.log('[Archived] User seeking to', videoElement.currentTime);
+        updateViewerStatus(`🔍 Đang tìm kiếm...`, 'info');
+      });
+
+      videoElement.addEventListener('seeked', () => {
+        console.log('[Archived] Seek completed, position:', videoElement.currentTime);
+        updateViewerStatus(`⏯️ Phát tiếp tục (${Math.floor(videoElement.currentTime)}s / ${Math.floor(videoElement.duration)}s)`, 'info');
+      });
+
+      videoElement.addEventListener('ended', () => {
+        console.log('[Archived] Video finished');
+        updateViewerStatus('✅ Phát hết video', 'success');
+      });
+
+      videoElement.addEventListener('error', (e) => {
+        console.error('[Archived] Video error:', videoElement.error);
+        const errorMsg = videoElement.error ? `${videoElement.error.code}` : 'Không xác định';
+        updateViewerStatus(`❌ Lỗi tải video: ${errorMsg}`, 'error');
+      });
+
+      videoElement.addEventListener('loadedmetadata', () => {
+        console.log('[Archived] Metadata loaded, duration:', videoElement.duration);
+      });
+
+      const container = viewer.querySelector('.viewer-container');
+      const oldCanvas = container.querySelector('canvas');
+      const oldVideo = container.querySelector('video');
+      
+      if (oldCanvas) {
+        oldCanvas.replaceWith(videoElement);
+      } else if (oldVideo) {
+        oldVideo.replaceWith(videoElement);
+      } else {
+        const status = container.querySelector('.status');
+        videoElement.style.marginBottom = '20px';
+        container.insertBefore(videoElement, status);
+      }
+
+      console.log('[Archived] Loading video:', filename);
+    }
+
+    function closeViewer() {
+      console.log('[Viewer] Closing viewer for session:', currentSessionId);
+      
+      // Clear bootstrap flag
+      isBootstrappingStream = false;
+      
+      // Clear session ID to prevent new chunks from being added
+      currentSessionId = null;
+      
+      // Clear chunk queue
+      videoChunks = [];
+      
+      // Clean up MediaSource
+      if (mediaSource) {
+        try {
+          console.log('[Viewer] Cleaning up MediaSource');
+          
+          if (sourceBuffer) {
+            try {
+              if (!sourceBuffer.updating) {
+                sourceBuffer.abort();
+              }
+            } catch (e) {
+              console.warn('[Viewer] Error aborting sourceBuffer:', e);
+            }
+            sourceBuffer = null;
+          }
+        } catch (e) {
+          console.warn('[Viewer] Error cleaning up MediaSource:', e);
+        }
+        mediaSource = null;
+      }
+      
+      // Revoke the object URL and clear video element
+      if (videoElement && videoElement.src) {
+        try {
+          URL.revokeObjectURL(videoElement.src);
+          console.log('[Viewer] Revoked MediaSource object URL');
+        } catch (e) {
+          console.warn('[Viewer] Error revoking ObjectURL:', e);
+        }
+        videoElement.src = '';
+      }
+      
+      document.getElementById('viewerSection').classList.remove('active');
+
+      // Restore canvas
+      const container = document.querySelector('.viewer-section .viewer-container');
+      const video = container.querySelector('video');
+      if (video && video.id !== 'videoCanvas') {
+        const newCanvas = document.createElement('canvas');
+        newCanvas.id = 'videoCanvas';
+        video.replaceWith(newCanvas);
+      }
+      
+      videoElement = null;
+    }
+
+    function updateViewerStatus(message, type = 'info') {
+      const status = document.getElementById('viewerStatus');
+      status.textContent = message;
+      status.className = `status ${type}`;
+    }
+
+    // Initialize
+    initConnection();
+    setInterval(() => {
+      if (connection && connection.state === signalR.HubConnectionState.Connected) {
+        loadLiveStreams();
+        loadArchivedStreams();
+      }
+    }, 3000); // Refresh every 3 seconds
+  </script>
+</body>
+</html>
