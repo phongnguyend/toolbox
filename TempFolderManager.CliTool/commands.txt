@@ -1,3 +1,0 @@
-dotnet tool install TempFolderManager.CliTool --global --add-source ./nupkg
-
-dotnet tool uninstall TempFolderManager.CliTool --global

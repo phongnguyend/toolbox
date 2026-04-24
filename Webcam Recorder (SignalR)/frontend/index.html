@@ -60,6 +60,18 @@
         width: 300px;
         max-width: 100%;
       }
+      canvas {
+        display: none;
+      }
+      #photoPreview {
+        display: none;
+        border: 2px solid #333;
+        border-radius: 10px;
+        width: 100%;
+        max-width: 640px;
+        height: auto;
+        margin-top: 10px;
+      }
       .upload-stats {
         display: flex;
         gap: 20px;
@@ -93,6 +105,14 @@
       <video id="preview" autoplay muted></video><br />
       <button id="startCamera">▶️ Bật Camera</button>
       <button id="stopCamera" disabled>⏹️ Tắt Camera</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📷 Chụp Ảnh</div>
+      <button id="takePhoto" disabled>📷 Chụp Ảnh</button>
+      <button id="savePhoto" disabled>💾 Lưu Ảnh</button>
+      <canvas id="photoCanvas"></canvas>
+      <img id="photoPreview" alt="Ảnh chụp" />
     </div>
 
     <div class="section">
@@ -156,6 +176,11 @@
       const MAX_RECONNECTION_ATTEMPTS = 5;
       let totalBytesUploaded = 0;
       let totalChunksUploaded = 0;
+
+      const takePhotoBtn = document.getElementById("takePhoto");
+      const savePhotoBtn = document.getElementById("savePhoto");
+      const photoCanvas = document.getElementById("photoCanvas");
+      const photoPreview = document.getElementById("photoPreview");
 
       const preview = document.getElementById("preview");
       const startCameraBtn = document.getElementById("startCamera");
@@ -251,6 +276,7 @@
           });
           preview.srcObject = stream;
           startRecordingBtn.disabled = false;
+          takePhotoBtn.disabled = false;
           startCameraBtn.disabled = true;
           stopCameraBtn.disabled = false;
           statusMessage.textContent = "✅ Camera started";
@@ -268,6 +294,8 @@
         startCameraBtn.disabled = false;
         stopCameraBtn.disabled = true;
         startRecordingBtn.disabled = true;
+        takePhotoBtn.disabled = true;
+        savePhotoBtn.disabled = true;
 
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
           mediaRecorder.stop();
@@ -493,6 +521,27 @@
           isUploading = false;
         }
       }
+
+      takePhotoBtn.onclick = () => {
+        photoCanvas.width = preview.videoWidth;
+        photoCanvas.height = preview.videoHeight;
+        photoCanvas.getContext('2d').drawImage(preview, 0, 0);
+        photoPreview.src = photoCanvas.toDataURL('image/png');
+        photoPreview.style.display = 'block';
+        savePhotoBtn.disabled = false;
+      };
+
+      savePhotoBtn.onclick = () => {
+        photoCanvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+          a.href = url;
+          a.download = `photo_${timestamp}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      };
 
       function formatBytes(bytes) {
         if (bytes === 0) return '0 B';
