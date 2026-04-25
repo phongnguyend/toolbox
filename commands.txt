@@ -3,3 +3,6 @@ dotnet tool install Toolbox.CoreCliTool --global --add-source ./nupkg
 
 dotnet tool uninstall Toolbox.Plugins.TempFolderManager.CliTool --global
 dotnet tool install Toolbox.Plugins.TempFolderManager.CliTool --global --add-source ./nupkg
+
+dotnet tool uninstall Toolbox.Plugins.MarkItDown.CliTool --global
+dotnet tool install Toolbox.Plugins.MarkItDown.CliTool --global --add-source ./nupkg
