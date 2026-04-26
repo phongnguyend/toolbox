@@ -25,6 +25,8 @@ async Task ConvertAsync(string path)
         return;
     }
 
+    Console.WriteLine($"Converting {path}");
+
     var resultFilePath = path + ".md";
 
     if (File.Exists(resultFilePath))
@@ -50,5 +52,5 @@ async Task ConvertAsync(string path)
 
     File.WriteAllText(resultFilePath, markdown);
 
-    Console.WriteLine(markdown);
+    Console.WriteLine($"Converted {path} -> {resultFilePath}");
 }
