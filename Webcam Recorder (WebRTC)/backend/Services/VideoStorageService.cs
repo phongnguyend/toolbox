@@ -1,5 +1,4 @@
 using System.Threading.Channels;
-using WebcamRecorderApi.Models;
 
 namespace WebcamRecorderApi.Services;
 
@@ -10,9 +9,8 @@ public class VideoStorageService : IAsyncDisposable
     private readonly Dictionary<string, Channel<(int Index, byte[] Data)>> _sessionChannels = new();
     private readonly Dictionary<string, Task> _sessionWriteTasks = new();
     private readonly Dictionary<string, CancellationTokenSource> _sessionCancellationTokens = new();
-    private readonly Dictionary<string, StreamSession> _sessionReferences = new();
     private readonly object _sessionLock = new();
-    private const int FlushIntervalMs = 500; // Flush every 500ms to ensure bootstrap data is available
+    private const int FlushIntervalMs = 500;
 
     public VideoStorageService(IConfiguration configuration, ILogger<VideoStorageService> logger)
     {
@@ -26,19 +24,13 @@ public class VideoStorageService : IAsyncDisposable
         return Path.Combine(Directory.GetCurrentDirectory(), basePath);
     }
 
-    public void CreateVideoSession(string sessionId, StreamSession? session = null)
+    public void CreateVideoSession(string sessionId)
     {
         var sessionPath = Path.Combine(GetStoragePath(), sessionId);
         Directory.CreateDirectory(sessionPath);
 
         lock (_sessionLock)
         {
-            // Store reference to session if provided (for bootstrap data storage)
-            if (session != null)
-            {
-                _sessionReferences[sessionId] = session;
-            }
-
             // Create a channel for this session with a bounded capacity
             var channel = Channel.CreateBounded<(int, byte[])>(new BoundedChannelOptions(100)
             {
@@ -70,16 +62,6 @@ public class VideoStorageService : IAsyncDisposable
             {
                 _logger.LogWarning($"Failed to queue chunk {chunkIndex} for session {sessionId}");
                 return false;
-            }
-
-            // Store the first chunk as bootstrap data for late joiners
-            if (chunkIndex == 0 && _sessionReferences.TryGetValue(sessionId, out var session))
-            {
-                if (session.BootstrapData == null)
-                {
-                    session.BootstrapData = data;
-                    _logger.LogInformation($"Stored bootstrap data for session {sessionId} (size: {data.Length} bytes)");
-                }
             }
         }
 
@@ -183,9 +165,6 @@ public class VideoStorageService : IAsyncDisposable
                 cts.Dispose();
                 _sessionCancellationTokens.Remove(sessionId);
             }
-
-            // Clean up session reference
-            _sessionReferences.Remove(sessionId);
         }
 
         // Wait for the write task to complete
@@ -231,13 +210,13 @@ public class VideoStorageService : IAsyncDisposable
         }
     }
 
-    public List<string> GetVideos()
+    public List<(string Name, DateTimeOffset CreatedAt)> GetVideos()
     {
         var storagePath = GetStoragePath();
         return Directory.GetFiles(storagePath, "*.webm")
-            .Select(Path.GetFileName)
-            .Where(f => f != null)
-            .ToList()!;
+            .Select(f => (Name: Path.GetFileName(f)!, CreatedAt: new DateTimeOffset(File.GetCreationTimeUtc(f), TimeSpan.Zero)))
+            .OrderByDescending(v => v.CreatedAt)
+            .ToList();
     }
 
     public FileStream? GetVideo(string filename)
@@ -257,32 +236,6 @@ public class VideoStorageService : IAsyncDisposable
         return Path.Combine(GetStoragePath(), filename);
     }
 
-    public byte[]? GetBootstrapBuffer(string sessionId)
-    {
-        lock (_sessionLock)
-        {
-            if (_sessionReferences.TryGetValue(sessionId, out var session))
-            {
-                if (session.BootstrapData != null)
-                {
-                    _logger.LogInformation($"Bootstrap data for session {sessionId}: {session.BootstrapData.Length / 1024}KB");
-                    return session.BootstrapData;
-                }
-            }
-        }
-
-        _logger.LogWarning($"No bootstrap data available for session {sessionId}");
-        return null;
-    }
-
-    public async Task<string> SaveVideoFromBufferAsync(string filename, List<byte> buffer)
-    {
-        var videoPath = Path.Combine(GetStoragePath(), $"{filename}.webm");
-        await File.WriteAllBytesAsync(videoPath, buffer.ToArray());
-        _logger.LogInformation($"Video saved from buffer: {videoPath}");
-        return videoPath;
-    }
-
     public async ValueTask DisposeAsync()
     {
         lock (_sessionLock)
@@ -299,8 +252,6 @@ public class VideoStorageService : IAsyncDisposable
                 cts.Dispose();
             }
             _sessionCancellationTokens.Clear();
-
-            _sessionReferences.Clear();
         }
 
         try

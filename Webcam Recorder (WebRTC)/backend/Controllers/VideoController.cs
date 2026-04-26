@@ -8,13 +8,11 @@ namespace WebcamRecorderApi.Controllers;
 public class VideoController : ControllerBase
 {
     private readonly VideoStorageService _storageService;
-    private readonly StreamSessionManager _sessionManager;
     private readonly ILogger<VideoController> _logger;
 
-    public VideoController(VideoStorageService storageService, StreamSessionManager sessionManager, ILogger<VideoController> logger)
+    public VideoController(VideoStorageService storageService, ILogger<VideoController> logger)
     {
         _storageService = storageService;
-        _sessionManager = sessionManager;
         _logger = logger;
     }
 
@@ -66,40 +64,13 @@ public class VideoController : ControllerBase
         }
     }
 
-    [HttpGet("bootstrap/{sessionId}")]
-    public IActionResult GetBootstrapChunks(string sessionId)
-    {
-        try
-        {
-            var session = _sessionManager.GetSession(sessionId);
-            if (session == null)
-            {
-                return NotFound(new { error = "Session not found" });
-            }
-
-            var bootstrapData = _storageService.GetBootstrapBuffer(sessionId);
-            if (bootstrapData == null)
-            {
-                return StatusCode(500, new { error = "Failed to fetch bootstrap buffer" });
-            }
-            
-            _logger.LogInformation($"[API] Sent bootstrap data for session {sessionId}: {bootstrapData.Length / 1024}KB");
-            
-            return File(bootstrapData, "application/octet-stream", "bootstrap.wvm");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Error fetching bootstrap chunks: {ex.Message}");
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
     [HttpGet("list")]
     public IActionResult GetVideos()
     {
         try
         {
-            var videos = _storageService.GetVideos();
+            var videos = _storageService.GetVideos()
+                .Select(v => new { name = v.Name, createdAt = v.CreatedAt });
             return Ok(new { videos });
         }
         catch (Exception ex)

@@ -3,8 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <title>Quay Video Webcam</title>
-    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@10.0.0/dist/browser/signalr.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr-protocol-msgpack@10.0.0/dist/browser/signalr-protocol-msgpack.min.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "@azure/communication-calling": "https://esm.sh/@azure/communication-calling@1.24.3",
+        "@azure/communication-common": "https://esm.sh/@azure/communication-common@2.3.1"
+      }
+    }
+    </script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -18,6 +24,7 @@
         width: 100%;
         max-width: 640px;
         height: auto;
+        background: #000;
       }
       button {
         margin: 10px 5px;
@@ -29,28 +36,16 @@
         border-radius: 4px;
         cursor: pointer;
       }
-      button:hover {
-        background: #0056b3;
-      }
-      button:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-      }
-      p {
-        margin: 5px 0;
-        font-size: 14px;
-      }
+      button:hover { background: #0056b3; }
+      button:disabled { background: #ccc; cursor: not-allowed; }
+      p { margin: 5px 0; font-size: 14px; }
       .section {
         margin: 20px 0;
         padding: 15px;
         border: 1px solid #ddd;
         border-radius: 8px;
       }
-      .section-title {
-        font-weight: bold;
-        font-size: 16px;
-        margin-bottom: 10px;
-      }
+      .section-title { font-weight: bold; font-size: 16px; margin-bottom: 10px; }
       input {
         padding: 8px;
         margin: 5px 0;
@@ -68,21 +63,9 @@
         background: #f0f0f0;
         border-radius: 4px;
       }
-      .stat {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .stat-label {
-        font-size: 12px;
-        color: #666;
-        font-weight: bold;
-      }
-      .stat-value {
-        font-size: 14px;
-        color: #333;
-        font-weight: bold;
-      }
+      .stat { display: flex; flex-direction: column; gap: 4px; }
+      .stat-label { font-size: 12px; color: #666; font-weight: bold; }
+      .stat-value { font-size: 14px; color: #333; font-weight: bold; }
     </style>
   </head>
   <body>
@@ -90,7 +73,10 @@
 
     <div class="section">
       <div class="section-title">📹 Camera</div>
-      <video id="preview" autoplay muted></video><br />
+      <div id="previewContainer">
+        <video id="preview" autoplay muted></video>
+      </div>
+      <br />
       <button id="startCamera">▶️ Bật Camera</button>
       <button id="stopCamera" disabled>⏹️ Tắt Camera</button>
     </div>
@@ -98,13 +84,7 @@
     <div class="section">
       <div class="section-title">🎬 Quay Video</div>
       <label>Tên Luồng:</label><br />
-      <input
-        id="streamTitle"
-        type="text"
-        placeholder="Nhập tên cho luồng video"
-        value="My Recording"
-      />
-
+      <input id="streamTitle" type="text" placeholder="Nhập tên cho luồng video" value="My Recording" />
       <br />
       <button id="startRecording" disabled>⏸️ Bắt Đầu Quay</button>
       <button id="stopRecording" disabled>⏹️ Dừng Quay</button>
@@ -112,7 +92,7 @@
       <p id="startTimeDisplay" style="font-size: 18px; font-weight: bold"></p>
       <p id="recordingTimer" style="font-size: 18px; color: red"></p>
       <p id="statusMessage" style="font-size: 14px; color: blue"></p>
-      
+
       <div class="upload-stats" id="uploadStats" style="display: none;">
         <div class="stat">
           <span class="stat-label">📤 Uploaded</span>
@@ -130,30 +110,31 @@
     </div>
 
     <div class="section">
-      <div class="section-title">📺 Xem Trực Tiếp & Lưu Trữ</div>
-      <button
-        onclick="window.open('viewer.html', 'viewer', 'width=1200,height=800')"
-      >
+      <div class="section-title">📺 Xem Trực Tiếp &amp; Lưu Trữ</div>
+      <button onclick="window.open('viewer.html', 'viewer', 'width=1200,height=800')">
         👁️ Mở Trình Xem
       </button>
     </div>
 
-    <script>
-      const HUB_URL = "http://localhost:5000/hub/video-stream";
+    <script type="module">
+      import { CallClient, LocalVideoStream, VideoStreamRenderer } from "@azure/communication-calling";
+      import { AzureCommunicationTokenCredential } from "@azure/communication-common";
 
-      let stream;
-      let mediaRecorder;
-      let timerInterval;
-      let connection = null;
-      let sessionId = null;
+      const API_BASE = "http://localhost:5000/api";
+      const BATCH_UPLOAD_INTERVAL = 500;
+
+      let mediaStream = null;
+      let mediaRecorder = null;
+      let timerInterval = null;
+      let uploadInterval = null;
+      let callAgent = null;
+      let currentCall = null;
+      let localVideoRenderer = null;
+      let roomId = null;
+      let videoSessionId = null;
       let chunkIndex = 0;
       let chunkQueue = [];
       let isUploading = false;
-      let uploadInterval = null;
-      const BATCH_UPLOAD_INTERVAL = 500; // Upload batches every 500ms for faster, smaller uploads
-      const MAX_CHUNKS_PER_BATCH = 2; // Reduce to 2 to keep messages well under 5MB limit with 500ms collection
-      let connectionErrorCount = 0;
-      const MAX_RECONNECTION_ATTEMPTS = 5;
       let totalBytesUploaded = 0;
       let totalChunksUploaded = 0;
 
@@ -171,85 +152,22 @@
       const uploadedChunksElem = document.getElementById("uploadedChunks");
       const queueSizeElem = document.getElementById("queueSize");
 
-      // Initialize SignalR connection
-      function initConnection() {
-        console.log("[SignalR] Initializing connection to", HUB_URL);
-        connection = new signalR.HubConnectionBuilder()
-          .withUrl(HUB_URL)
-          .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
-          .withAutomaticReconnect([0, 1000, 3000, 5000, 10000]) // More aggressive reconnection
-          .build();
-
-        connection.onreconnecting(() => {
-          statusMessage.textContent = "⏳ Reconnecting to server...";
-          console.log("[SignalR] Reconnecting to server");
-        });
-
-        connection.onreconnected(() => {
-          statusMessage.textContent = "✅ Reconnected to server";
-          console.log("[SignalR] Reconnected, state:", connection.state);
-          connectionErrorCount = 0;
-          if (
-            mediaRecorder &&
-            mediaRecorder.state === "recording" &&
-            chunkQueue.length > 0
-          ) {
-            console.log("[SignalR] Resuming upload, queue:", chunkQueue.length);
-            batchUploadChunks();
-          }
-        });
-
-        connection.onclose((error) => {
-          if (error) {
-            statusMessage.textContent = `❌ Disconnected: ${error}`;
-            console.error("[SignalR] Connection closed with error:", error);
-          } else {
-            statusMessage.textContent = "❌ Disconnected from server";
-            console.log("[SignalR] Connection closed normally");
-          }
-        });
-
-        connection
-          .start()
-          .then(() => {
-            console.log(
-              "[SignalR] Connected successfully, state:",
-              connection.state,
-            );
-            statusMessage.textContent = "✅ Connected to server";
-          })
-          .catch((err) => {
-            console.error("[SignalR] Connection failed:", err);
-            statusMessage.textContent = "❌ Cannot connect to server: " + err;
-            console.log("[SignalR] Retrying in 5 seconds...");
-            setTimeout(() => initConnection(), 5000);
-          });
-
-        // Handle error messages from server
-        connection.on("Error", (message) => {
-          console.error("[SignalR] Server error:", message);
-          statusMessage.textContent = `⚠️ Server: ${message}`;
-        });
+      function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / 1048576).toFixed(1) + " MB";
       }
 
-      initConnection();
-
-      // Debug: Show HubConnectionState values
-      console.log("[Init] HubConnectionState values:", {
-        Connected: signalR.HubConnectionState.Connected,
-        Connecting: signalR.HubConnectionState.Connecting,
-        Disconnected: signalR.HubConnectionState.Disconnected,
-        Disconnecting: signalR.HubConnectionState.Disconnecting,
-        Reconnecting: signalR.HubConnectionState.Reconnecting,
-      });
+      function updateUploadStats() {
+        uploadedBytesElem.textContent = formatBytes(totalBytesUploaded);
+        uploadedChunksElem.textContent = totalChunksUploaded;
+        queueSizeElem.textContent = chunkQueue.length;
+      }
 
       startCameraBtn.onclick = async () => {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true,
-          });
-          preview.srcObject = stream;
+          mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          preview.srcObject = mediaStream;
           startRecordingBtn.disabled = false;
           startCameraBtn.disabled = true;
           stopCameraBtn.disabled = false;
@@ -261,14 +179,14 @@
       };
 
       stopCameraBtn.onclick = () => {
-        if (stream) {
-          stream.getTracks().forEach((track) => track.stop());
+        if (mediaStream) {
+          mediaStream.getTracks().forEach(t => t.stop());
+          mediaStream = null;
         }
         preview.srcObject = null;
         startCameraBtn.disabled = false;
         stopCameraBtn.disabled = true;
         startRecordingBtn.disabled = true;
-
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
           mediaRecorder.stop();
           stopRecordingBtn.disabled = true;
@@ -279,234 +197,151 @@
 
       startRecordingBtn.onclick = async () => {
         try {
-          console.log("[Recording] Connection check:", {
-            exists: !!connection,
-            state: connection?.state,
-            connected:
-              connection?.state === signalR.HubConnectionState.Connected,
-            expectedState: signalR.HubConnectionState.Connected,
+          const title = streamTitleInput.value.trim() || "Recording";
+          statusMessage.textContent = "⏳ Getting ACS token...";
+
+          // 1. Get ACS token
+          const tokenRes = await fetch(`${API_BASE}/acs/token`, { method: "POST" });
+          if (!tokenRes.ok) throw new Error("Failed to get ACS token");
+          const { userId, token } = await tokenRes.json();
+
+          // 2. Create ACS room (also creates video session)
+          statusMessage.textContent = "⏳ Creating room...";
+          const roomRes = await fetch(`${API_BASE}/acs/rooms`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, userId })
           });
+          if (!roomRes.ok) throw new Error("Failed to create room");
+          const roomData = await roomRes.json();
+          roomId = roomData.roomId;
+          videoSessionId = roomData.videoSessionId;
 
-          if (
-            !connection ||
-            connection.state !== signalR.HubConnectionState.Connected
-          ) {
-            const state = connection?.state ?? "no connection";
-            statusMessage.textContent = `❌ Not connected to server (state=${state})`;
-            console.error("[Recording] Connection not ready!");
-            return;
-          }
+          // 3. Join ACS call
+          statusMessage.textContent = "⏳ Joining ACS call...";
+          const credential = new AzureCommunicationTokenCredential(token);
+          const callClient = new CallClient();
+          callAgent = await callClient.createCallAgent(credential, { displayName: "Recorder" });
 
-          const title = streamTitleInput.value || "Recording";
-          statusMessage.textContent = "⏳ Starting stream...";
-
-          console.log("[Recording] Invoking StartStream with title:", title);
-          sessionId = await connection.invoke("StartStream", title);
-          console.log(
-            "[Recording] ✅ StartStream successful, sessionId:",
-            sessionId,
+          const localVideoStream = new LocalVideoStream(mediaStream);
+          currentCall = callAgent.join(
+            { roomId },
+            { videoOptions: { localVideoStreams: [localVideoStream] } }
           );
+
+          // Render local preview via ACS renderer
+          localVideoRenderer = new VideoStreamRenderer(localVideoStream);
+          const view = await localVideoRenderer.createView({ scalingMode: "Crop" });
+          preview.srcObject = null;
+          preview.parentElement.appendChild(view.target);
+
+          // 4. Start local MediaRecorder for archiving
           chunkIndex = 0;
           chunkQueue = [];
           totalBytesUploaded = 0;
           totalChunksUploaded = 0;
-          uploadStats.style.display = 'flex';
+          uploadStats.style.display = "flex";
           updateUploadStats();
 
-          statusMessage.textContent = `✅ Stream started (Session: ${sessionId.substring(0, 8)}...)`;
-
-          mediaRecorder = new MediaRecorder(stream);
-
-          mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-              chunkQueue.push(event.data);
-            }
+          mediaRecorder = new MediaRecorder(mediaStream);
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunkQueue.push(e.data);
           };
-
           mediaRecorder.onstop = async () => {
-            if (uploadInterval) {
-              clearInterval(uploadInterval);
-              uploadInterval = null;
-            }
-
+            if (uploadInterval) { clearInterval(uploadInterval); uploadInterval = null; }
             if (chunkQueue.length > 0) {
               statusMessage.textContent = "⏳ Uploading final chunks...";
               await batchUploadChunks();
             }
-
-            statusMessage.textContent = "⏳ Finalizing stream on server...";
-            const timestamp = new Date()
-              .toISOString()
-              .replace(/[:.]/g, "-")
-              .slice(0, -5);
-            const filename = `${title}_${timestamp}`;
-
+            // Finalize video
+            const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
+            const filename = `${title}_${ts}`;
             try {
-              const result = await connection.invoke(
-                "FinalizeStream",
-                sessionId,
-                filename,
+              const finalRes = await fetch(
+                `${API_BASE}/video/finalize?sessionId=${encodeURIComponent(videoSessionId)}&filename=${encodeURIComponent(filename)}`,
+                { method: "POST" }
               );
-              statusMessage.textContent = `✅ Stream ended and saved: ${result}.webm`;
-              sessionId = null;
+              if (finalRes.ok) {
+                statusMessage.textContent = `✅ Saved: ${filename}.webm`;
+              } else {
+                statusMessage.textContent = "⚠️ Finalize returned error";
+              }
             } catch (err) {
-              statusMessage.textContent = `❌ Error finalizing: ${err}`;
+              statusMessage.textContent = "❌ Finalize failed: " + err;
             }
-
+            // End ACS room
+            try {
+              if (currentCall) { await currentCall.hangUp(); currentCall = null; }
+              if (callAgent) { callAgent.dispose(); callAgent = null; }
+              await fetch(`${API_BASE}/acs/rooms/${encodeURIComponent(roomId)}`, { method: "DELETE" });
+            } catch (err) {
+              console.error("Cleanup error:", err);
+            }
+            roomId = null;
+            videoSessionId = null;
             clearInterval(timerInterval);
             recordingTimer.textContent = "";
           };
 
-          const now = new Date();
-          const timeStr = now.toLocaleTimeString("vi-VN");
-          startTimeDisplay.textContent = `⏱ Started at: ${timeStr}`;
+          uploadInterval = setInterval(() => {
+            if (chunkQueue.length > 0 && !isUploading) batchUploadChunks();
+          }, BATCH_UPLOAD_INTERVAL);
 
+          mediaRecorder.start(500);
+
+          // Timer
+          const now = new Date();
+          startTimeDisplay.textContent = `⏱ Started at: ${now.toLocaleTimeString("vi-VN")}`;
           let seconds = 0;
           timerInterval = setInterval(() => {
             seconds++;
-            const mins = String(Math.floor(seconds / 60)).padStart(2, "0");
-            const secs = String(seconds % 60).padStart(2, "0");
-            recordingTimer.textContent = `⏳ Recording: ${mins}:${secs}`;
+            const m = String(Math.floor(seconds / 60)).padStart(2, "0");
+            const s = String(seconds % 60).padStart(2, "0");
+            recordingTimer.textContent = `⏳ Recording: ${m}:${s}`;
           }, 1000);
 
-          // Start batch upload interval
-          uploadInterval = setInterval(() => {
-            if (chunkQueue.length > 0 && !isUploading) {
-              batchUploadChunks();
-            }
-          }, BATCH_UPLOAD_INTERVAL);
-
-          mediaRecorder.start(500); // Collect data every 500ms for smaller chunks
           startRecordingBtn.disabled = true;
           stopRecordingBtn.disabled = false;
+          statusMessage.textContent = `✅ Recording (Room: ${roomId.substring(0, 8)}...)`;
         } catch (err) {
-          statusMessage.textContent = `❌ Error: ${err}`;
-          alert("❌ Error starting recording: " + err);
+          statusMessage.textContent = "❌ Error: " + err;
+          console.error(err);
         }
       };
 
       stopRecordingBtn.onclick = () => {
-        mediaRecorder.stop();
+        if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
         startRecordingBtn.disabled = false;
         stopRecordingBtn.disabled = true;
+        if (localVideoRenderer) { localVideoRenderer.dispose(); localVideoRenderer = null; }
+        // Restore raw preview
+        if (mediaStream) preview.srcObject = mediaStream;
       };
 
       async function batchUploadChunks() {
-        console.log(
-          "[Upload] batchUploadChunks called: queue.length=",
-          chunkQueue.length,
-          "isUploading=",
-          isUploading,
-          "sessionId=",
-          !!sessionId,
-        );
-
-        if (chunkQueue.length === 0 || isUploading || !sessionId) {
-          console.log(
-            "[Upload] Early return - queue empty or already uploading",
-          );
-          return;
-        }
-
-        const connectionState = connection ? connection.state : -1;
-        const isConnected =
-          connection &&
-          connection.state === signalR.HubConnectionState.Connected;
-        console.log(
-          "[Upload] Connection state:",
-          connectionState,
-          "(Connected=",
-          signalR.HubConnectionState.Connected,
-          ") isConnected=",
-          isConnected,
-        );
-
-        if (!isConnected) {
-          console.warn("[Upload] Not connected to server");
-          statusMessage.textContent =
-            "⚠️ Not connected, buffering chunks... (state:" +
-            connectionState +
-            ")";
-          return;
-        }
-
+        if (isUploading || chunkQueue.length === 0 || !videoSessionId) return;
         isUploading = true;
         try {
-          const chunksToUpload = chunkQueue.splice(0, MAX_CHUNKS_PER_BATCH);
-          console.log(
-            "[Upload] Processing batch of",
-            chunksToUpload.length,
-            "chunks",
-          );
-          let successCount = 0;
-
-          for (const blob of chunksToUpload) {
-            try {
-              const arrayBuffer = await blob.arrayBuffer();
-              const uint8Array = new Uint8Array(arrayBuffer);
-
-              console.log(
-                `[Upload] Invoking UploadChunk: sessionId=${sessionId}, chunkIndex=${chunkIndex}, uint8ArrayLength=${uint8Array.length}`,
-              );
-              await connection.invoke(
-                "UploadChunk",
-                sessionId,
-                chunkIndex,
-                uint8Array,
-              );
-              console.log(`[Upload] ✅ Chunk ${chunkIndex} uploaded`);
-              
-              // Track uploaded bytes and chunks
-              totalBytesUploaded += uint8Array.length;
+          while (chunkQueue.length > 0) {
+            const blob = chunkQueue.shift();
+            const arrayBuffer = await blob.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const res = await fetch(
+              `${API_BASE}/video/chunk?sessionId=${encodeURIComponent(videoSessionId)}&chunkIndex=${chunkIndex}`,
+              { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: data }
+            );
+            if (res.ok) {
+              totalBytesUploaded += data.length;
               totalChunksUploaded++;
-              updateUploadStats();
-              
               chunkIndex++;
-              successCount++;
-              connectionErrorCount = 0;
-            } catch (err) {
-              console.error("[Upload] ❌ Chunk error:", err);
-              connectionErrorCount++;
-
-              if (connectionErrorCount > MAX_RECONNECTION_ATTEMPTS) {
-                statusMessage.textContent = `❌ Upload failed too many times (${connectionErrorCount}). Stopped.`;
-                return;
-              }
-
-              chunkQueue.unshift(blob);
-              statusMessage.textContent = `⚠️ Retry ${connectionErrorCount}/${MAX_RECONNECTION_ATTEMPTS}`;
-              break;
             }
-          }
-
-          if (
-            successCount > 0 &&
-            mediaRecorder &&
-            mediaRecorder.state === "recording"
-          ) {
-            statusMessage.textContent = `📤 ${chunkIndex} chunks uploaded (queue: ${chunkQueue.length})`;
+            updateUploadStats();
           }
         } catch (err) {
-          console.error("[Upload] Batch error:", err);
-          statusMessage.textContent = `❌ Upload error: ${err}`;
+          console.error("Upload error:", err);
         } finally {
           isUploading = false;
         }
-      }
-
-      function formatBytes(bytes) {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-      }
-
-      function updateUploadStats() {
-        uploadedBytesElem.textContent = formatBytes(totalBytesUploaded);
-        uploadedChunksElem.textContent = totalChunksUploaded;
-        const queueBytes = chunkQueue.reduce((sum, blob) => sum + blob.size, 0);
-        queueSizeElem.textContent = `${chunkQueue.length} (${formatBytes(queueBytes)})`;
       }
     </script>
   </body>
