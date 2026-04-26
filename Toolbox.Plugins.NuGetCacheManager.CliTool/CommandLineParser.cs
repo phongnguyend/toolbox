@@ -1,6 +1,6 @@
 namespace NuGetCacheManager;
 
-public record ParsedArguments(string Command, string OrderBy, string OrderByDescending, List<string> Errors);
+public record ParsedArguments(string Command, string OrderBy, string OrderByDescending, string PackageName, List<string> Errors);
 
 public static class CommandLineParser
 {
@@ -13,6 +13,7 @@ public static class CommandLineParser
         string command = string.Empty;
         string orderBy = "name";
         string orderByDescending = string.Empty;
+        string packageName = string.Empty;
         var errors = new List<string>();
 
         int i = 0;
@@ -58,6 +59,19 @@ public static class CommandLineParser
                     i += 2;
                 }
             }
+            else if (args[i] == "--package-name")
+            {
+                if (i + 1 >= args.Length)
+                {
+                    errors.Add($"Option '{args[i]}' requires a value");
+                    i++;
+                }
+                else
+                {
+                    packageName = args[i + 1];
+                    i += 2;
+                }
+            }
             else if (args[i].StartsWith("--"))
             {
                 errors.Add($"Unknown option: '{args[i]}'");
@@ -69,6 +83,6 @@ public static class CommandLineParser
             }
         }
 
-        return new ParsedArguments(command, orderBy, orderByDescending, errors);
+        return new ParsedArguments(command, orderBy, orderByDescending, packageName, errors);
     }
 }
