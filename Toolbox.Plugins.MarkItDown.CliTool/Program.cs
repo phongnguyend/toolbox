@@ -27,6 +27,16 @@ async Task ConvertAsync(string path)
 
     var resultFilePath = path + ".md";
 
+    if (File.Exists(resultFilePath))
+    {
+        int number = 1;
+        while (File.Exists(path + $"({number}).md"))
+        {
+            number++;
+        }
+        resultFilePath = path + $"({number}).md";
+    }
+
     using var form = new MultipartFormDataContent();
     using var fileContent = new ByteArrayContent(File.ReadAllBytes(path));
     fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data");
