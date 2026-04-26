@@ -2,19 +2,22 @@
 
 HttpClient client = new HttpClient();
 
-Console.WriteLine(args[0]);
-var filePath = args[0];
+foreach (var arg in args)
+{
+    Console.WriteLine(arg);
+    var filePath = arg;
 
-if (Directory.Exists(filePath))
-{
-    foreach (var file in Directory.GetFiles(filePath))
+    if (Directory.Exists(filePath))
     {
-        await ConvertAsync(file);
+        foreach (var file in Directory.GetFiles(filePath))
+        {
+            await ConvertAsync(file);
+        }
     }
-}
-else
-{
-    await ConvertAsync(filePath);
+    else
+    {
+        await ConvertAsync(filePath);
+    }
 }
 
 async Task ConvertAsync(string path)
