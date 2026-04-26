@@ -31,6 +31,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Toolbox.Plugins.MarkItDown.CliTool", "Toolbox.Plugins.MarkItDown.CliTool\Toolbox.Plugins.MarkItDown.CliTool.csproj", "{B9442C3C-6D83-45AD-B50D-02AF77FB8A72}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Toolbox.Plugins.NuGetCacheManager.CliTool", "Toolbox.Plugins.NuGetCacheManager.CliTool\Toolbox.Plugins.NuGetCacheManager.CliTool.csproj", "{EE32DFB1-1620-44CF-871B-9595967DCFA6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,10 @@ Global
 		{B9442C3C-6D83-45AD-B50D-02AF77FB8A72}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B9442C3C-6D83-45AD-B50D-02AF77FB8A72}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B9442C3C-6D83-45AD-B50D-02AF77FB8A72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE32DFB1-1620-44CF-871B-9595967DCFA6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE32DFB1-1620-44CF-871B-9595967DCFA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE32DFB1-1620-44CF-871B-9595967DCFA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE32DFB1-1620-44CF-871B-9595967DCFA6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -78,6 +84,7 @@ Global
 		{A97C2041-5FAC-79FE-3E96-4115B3CBDE79} = {AFF51B7D-B36D-4069-B6C1-230B52B14244}
 		{C5BBA972-8E0A-18DC-ADD2-BA42627D0458} = {AFF51B7D-B36D-4069-B6C1-230B52B14244}
 		{B9442C3C-6D83-45AD-B50D-02AF77FB8A72} = {AFF51B7D-B36D-4069-B6C1-230B52B14244}
+		{EE32DFB1-1620-44CF-871B-9595967DCFA6} = {AFF51B7D-B36D-4069-B6C1-230B52B14244}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4D10FD3F-20CF-4190-B090-76F724575BCC}
