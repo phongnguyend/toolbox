@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>📺 Xem Video Trực Tiếp - Webcam Recorder</title>
+  <title>📺 Live Video Viewer - Webcam Recorder</title>
   <script type="importmap">
   {
     "imports": {
@@ -177,24 +177,24 @@
 </head>
 <body>
   <div class="container">
-    <h1>📺 Xem Video Trực Tiếp</h1>
+    <h1>📺 Live Video Viewer</h1>
     
     <div class="section">
-      <div class="section-title">🔴 Trực Tiếp Hiện Tại</div>
+      <div class="section-title">🔴 Live Streams</div>
       <div id="liveStreams" class="stream-list">
         <div class="empty-state">
           <div class="empty-state-icon">📻</div>
-          <p>Không có luồng trực tiếp nào</p>
+          <p>No live streams available</p>
         </div>
       </div>
     </div>
 
     <div class="section">
-      <div class="section-title">📹 Thư Viện Ghi Hình (Xem Lại)</div>
+      <div class="section-title">📹 Recording Library (Playback)</div>
       <div id="archivedStreams" class="archive-list">
         <div class="empty-state">
           <div class="empty-state-icon">🎬</div>
-          <p>Chưa có video ghi hình</p>
+          <p>No recordings yet</p>
         </div>
       </div>
     </div>
@@ -205,13 +205,13 @@
     <div class="viewer-container">
       <div class="viewer-header">
         <div>
-          <div id="viewerLiveIndicator" style="display: none; color: #ff4444; font-weight: bold;">🔴 ĐANG TRỰC TIẾP</div>
+          <div id="viewerLiveIndicator" style="display: none; color: #ff4444; font-weight: bold;">🔴 LIVE</div>
           <div id="viewerTitle" class="viewer-title"></div>
         </div>
-        <button class="close-btn" onclick="closeViewer()">Đóng</button>
+        <button class="close-btn" onclick="closeViewer()">Close</button>
       </div>
       <div id="remoteVideoContainer" style="width:100%;min-height:300px;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;"></div>
-      <div id="viewerStatus" class="status info">Đang kết nối...</div>
+      <div id="viewerStatus" class="status info">Connecting...</div>
     </div>
   </div>
 
@@ -253,7 +253,7 @@
           container.innerHTML = `
             <div class="empty-state">
               <div class="empty-state-icon">📻</div>
-              <p>Không có luồng trực tiếp nào</p>
+              <p>No live streams available</p>
             </div>`;
           return;
         }
@@ -261,8 +261,8 @@
         container.innerHTML = rooms.map(room => `
           <div class="stream-card live" onclick="viewLiveStream('${escapeHtml(room.roomId)}', '${escapeHtml(room.title)}')">
             <div class="stream-title">${escapeHtml(room.title)}</div>
-            <div class="stream-info">Bắt đầu: ${new Date(room.createdAt).toLocaleString('vi-VN')}</div>
-            <button onclick="viewLiveStream('${escapeHtml(room.roomId)}', '${escapeHtml(room.title)}'); event.stopPropagation();">👁️ Xem Trực Tiếp</button>
+            <div class="stream-info">Started: ${new Date(room.createdAt).toLocaleString('en-US')}</div>
+            <button onclick="viewLiveStream('${escapeHtml(room.roomId)}', '${escapeHtml(room.title)}'); event.stopPropagation();">👁️ Watch Live</button>
           </div>`).join('');
       } catch (err) {
         console.error('Error loading live streams:', err);
@@ -280,7 +280,7 @@
           container.innerHTML = `
             <div class="empty-state">
               <div class="empty-state-icon">🎬</div>
-              <p>Chưa có video ghi hình</p>
+              <p>No recordings yet</p>
             </div>`;
           return;
         }
@@ -288,8 +288,8 @@
         container.innerHTML = videos.map(video => `
           <div class="archive-card" onclick="viewArchivedVideo('${escapeHtml(video.name)}')">
             <div class="stream-title">${escapeHtml(video.name.replace('.webm', ''))}</div>
-            <div class="stream-info">Ngày: ${new Date(video.createdAt).toLocaleString('vi-VN')}</div>
-            <button onclick="viewArchivedVideo('${escapeHtml(video.name)}'); event.stopPropagation();">▶️ Phát</button>
+            <div class="stream-info">Date: ${new Date(video.createdAt).toLocaleString('en-US')}</div>
+            <button onclick="viewArchivedVideo('${escapeHtml(video.name)}'); event.stopPropagation();">▶️ Play</button>
           </div>`).join('');
       } catch (err) {
         console.error('Error loading archived videos:', err);
@@ -301,13 +301,13 @@
     window.viewLiveStream = async function (roomId, title) {
       try {
         showViewer(title, true);
-        updateViewerStatus('⏳ Lấy token tham gia...');
+        updateViewerStatus('⏳ Getting join token...');
 
         const tokenRes = await fetch(`${API_BASE}/acs/rooms/${encodeURIComponent(roomId)}/token`, { method: 'POST' });
-        if (!tokenRes.ok) throw new Error('Không thể lấy token tham gia');
+        if (!tokenRes.ok) throw new Error('Failed to get join token');
         const { token } = await tokenRes.json();
 
-        updateViewerStatus('⏳ Kết nối đến phòng ACS...');
+        updateViewerStatus('⏳ Connecting to ACS room...');
         const credential = new AzureCommunicationTokenCredential(token);
         const callClient = new CallClient();
         callAgent = await callClient.createCallAgent(credential, { displayName: 'Viewer' });
@@ -319,10 +319,10 @@
         });
         currentCall.remoteParticipants.forEach(p => subscribeToParticipant(p));
 
-        updateViewerStatus('✅ Đã kết nối, đang chờ video...', 'success');
+        updateViewerStatus('✅ Connected, waiting for video...', 'success');
       } catch (err) {
         console.error('Error joining live stream:', err);
-        updateViewerStatus(`❌ Lỗi: ${err.message}`, 'error');
+        updateViewerStatus(`❌ Error: ${err.message}`, 'error');
       }
     };
 
@@ -350,7 +350,7 @@
       remoteRenderers.push(renderer);
       const view = await renderer.createView({ scalingMode: 'Fit' });
       container.appendChild(view.target);
-      updateViewerStatus('🔴 Đang phát trực tiếp', 'success');
+      updateViewerStatus('🔴 Live streaming', 'success');
     }
 
     // ── Archived video ─────────────────────────────────────────────────────────
@@ -367,16 +367,16 @@
       video.autoplay = false;
       video.style.cssText = 'width:100%;border-radius:8px;';
 
-      video.addEventListener('canplay', () => updateViewerStatus(`✅ Sẵn sàng phát`, 'success'));
-      video.addEventListener('play', () => updateViewerStatus('▶️ Đang phát...', 'info'));
+      video.addEventListener('canplay', () => updateViewerStatus(`✅ Ready to play`, 'success'));
+      video.addEventListener('play', () => updateViewerStatus('▶️ Playing...', 'info'));
       video.addEventListener('pause', () => updateViewerStatus(
-        `⏸️ Tạm dừng (${Math.floor(video.currentTime)}s / ${Math.floor(video.duration)}s)`, 'info'));
-      video.addEventListener('ended', () => updateViewerStatus('✅ Phát hết video', 'success'));
+        `⏸️ Paused (${Math.floor(video.currentTime)}s / ${Math.floor(video.duration)}s)`, 'info'));
+      video.addEventListener('ended', () => updateViewerStatus('✅ Video ended', 'success'));
       video.addEventListener('error', () => updateViewerStatus(
-        `❌ Lỗi tải video: ${video.error ? video.error.code : 'Không xác định'}`, 'error'));
+        `❌ Error loading video: ${video.error ? video.error.code : 'Unknown'}`, 'error'));
 
       container.appendChild(video);
-      updateViewerStatus('⏳ Đang tải video...');
+      updateViewerStatus('⏳ Loading video...');
     };
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -405,7 +405,7 @@
 
       document.getElementById('remoteVideoContainer').innerHTML = '';
       document.getElementById('viewerSection').classList.remove('active');
-      updateViewerStatus('Đang kết nối...');
+      updateViewerStatus('Connecting...');
     };
 
     // ── Initialize ─────────────────────────────────────────────────────────────

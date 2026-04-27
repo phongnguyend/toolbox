@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Quay Video Webcam</title>
+    <title>Webcam Video Recorder</title>
     <script type="importmap">
     {
       "imports": {
@@ -69,7 +69,7 @@
     </style>
   </head>
   <body>
-    <h1>🎥 Ứng dụng Quay Video từ Webcam</h1>
+    <h1>🎥 Webcam Video Recorder</h1>
 
     <div class="section">
       <div class="section-title">📹 Camera</div>
@@ -77,17 +77,17 @@
         <video id="preview" autoplay muted></video>
       </div>
       <br />
-      <button id="startCamera">▶️ Bật Camera</button>
-      <button id="stopCamera" disabled>⏹️ Tắt Camera</button>
+      <button id="startCamera">▶️ Start Camera</button>
+      <button id="stopCamera" disabled>⏹️ Stop Camera</button>
     </div>
 
     <div class="section">
-      <div class="section-title">🎬 Quay Video</div>
-      <label>Tên Luồng:</label><br />
-      <input id="streamTitle" type="text" placeholder="Nhập tên cho luồng video" value="My Recording" />
+      <div class="section-title">🎬 Record Video</div>
+      <label>Stream Title:</label><br />
+      <input id="streamTitle" type="text" placeholder="Enter stream title" value="My Recording" />
       <br />
-      <button id="startRecording" disabled>⏸️ Bắt Đầu Quay</button>
-      <button id="stopRecording" disabled>⏹️ Dừng Quay</button>
+      <button id="startRecording" disabled>⏸️ Start Recording</button>
+      <button id="stopRecording" disabled>⏹️ Stop Recording</button>
 
       <p id="startTimeDisplay" style="font-size: 18px; font-weight: bold"></p>
       <p id="recordingTimer" style="font-size: 18px; color: red"></p>
@@ -110,9 +110,9 @@
     </div>
 
     <div class="section">
-      <div class="section-title">📺 Xem Trực Tiếp &amp; Lưu Trữ</div>
+      <div class="section-title">📺 Live View &amp; Storage</div>
       <button onclick="window.open('viewer.html', 'viewer', 'width=1200,height=800')">
-        👁️ Mở Trình Xem
+        👁️ Open Viewer
       </button>
     </div>
 
@@ -291,7 +291,7 @@
 
           // Timer
           const now = new Date();
-          startTimeDisplay.textContent = `⏱ Started at: ${now.toLocaleTimeString("vi-VN")}`;
+          startTimeDisplay.textContent = `⏱ Started at: ${now.toLocaleTimeString("en-US")}`;
           let seconds = 0;
           timerInterval = setInterval(() => {
             seconds++;
