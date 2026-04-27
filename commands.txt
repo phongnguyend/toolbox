@@ -1,6 +1,9 @@
 dotnet tool uninstall Toolbox.CoreCliTool --global
 dotnet tool install Toolbox.CoreCliTool --global --add-source ./nupkg
 
+dotnet tool uninstall Toolbox.Plugins.DotNetDeepClean.CliTool --global
+dotnet tool install Toolbox.Plugins.DotNetDeepClean.CliTool --global --add-source ./nupkg
+
 dotnet tool uninstall Toolbox.Plugins.MarkItDown.CliTool --global
 dotnet tool install Toolbox.Plugins.MarkItDown.CliTool --global --add-source ./nupkg
 
