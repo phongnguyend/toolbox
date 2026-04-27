@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>📺 Xem Video Trực Tiếp - Webcam Recorder</title>
+  <title>📺 Live Video Viewer - Webcam Recorder</title>
     <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@10.0.0/dist/browser/signalr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr-protocol-msgpack@10.0.0/dist/browser/signalr-protocol-msgpack.min.js"></script>
   <style>
@@ -171,10 +171,10 @@
 </head>
 <body>
   <div class="container">
-    <h1>📺 Xem Video Trực Tiếp</h1>
+    <h1>📺 Live Video Viewer</h1>
     
     <div class="section">
-      <div class="section-title">🔴 Trực Tiếp Hiện Tại</div>
+      <div class="section-title">🔴 Current Live Streams</div>
       <div id="liveStreams" class="stream-list">
         <div class="empty-state">
           <div class="empty-state-icon">📻</div>
@@ -184,11 +184,11 @@
     </div>
 
     <div class="section">
-      <div class="section-title">📹 Thư Viện Ghi Hình (Xem Lại)</div>
+      <div class="section-title">📹 Recording Archive (Playback)</div>
       <div id="archivedStreams" class="archive-list">
         <div class="empty-state">
           <div class="empty-state-icon">🎬</div>
-          <p>Chưa có video ghi hình</p>
+          <p>No recordings available</p>
         </div>
       </div>
     </div>
@@ -199,13 +199,13 @@
     <div class="viewer-container">
       <div class="viewer-header">
         <div>
-          <div id="viewerLiveIndicator" style="display: none; color: #ff4444; font-weight: bold;">🔴 ĐANG TRỰC TIẾP</div>
+          <div id="viewerLiveIndicator" style="display: none; color: #ff4444; font-weight: bold;">🔴 LIVE</div>
           <div id="viewerTitle" class="viewer-title"></div>
         </div>
-        <button class="close-btn" onclick="closeViewer()">Đóng</button>
+        <button class="close-btn" onclick="closeViewer()">Close</button>
       </div>
       <canvas id="videoCanvas"></canvas>
-      <div id="viewerStatus" class="status info">Đang kết nối...</div>
+      <div id="viewerStatus" class="status info">Connecting...</div>
     </div>
   </div>
 
@@ -241,7 +241,7 @@
 
       connection.on("StreamInfo", (info) => {
         console.log("Stream info:", info);
-        document.getElementById('viewerTitle').textContent = `${info.title} ${info.isLive ? '(Trực Tiếp)' : '(Ghi Hình)'}`;
+        document.getElementById('viewerTitle').textContent = `${info.title} ${info.isLive ? '(Live)' : '(Recording)'}`;
         document.getElementById('viewerLiveIndicator').style.display = info.isLive ? 'block' : 'none';
         updateViewerStatus(`Connected to: ${info.title}`);
       });
@@ -465,7 +465,7 @@
           container.innerHTML = `
             <div class="empty-state">
               <div class="empty-state-icon">📻</div>
-              <p>Không có luồng trực tiếp nào</p>
+              <p>No live streams available</p>
             </div>
           `;
           return;
@@ -474,8 +474,8 @@
         container.innerHTML = liveStreams.map(stream => `
           <div class="stream-card live" onclick="viewLiveStream('${stream.sessionId}')">
             <div class="stream-title">${stream.title}</div>
-            <div class="stream-info">Bắt đầu: ${new Date(stream.createdAt).toLocaleString('vi-VN')}</div>
-            <button onclick="viewLiveStream('${stream.sessionId}'); event.stopPropagation();">👁️ Xem Trực Tiếp</button>
+            <div class="stream-info">Started: ${new Date(stream.createdAt).toLocaleString('en-US')}</div>
+            <button onclick="viewLiveStream('${stream.sessionId}'); event.stopPropagation();">👁️ Watch Live</button>
           </div>
         `).join('');
       } catch (err) {
@@ -497,7 +497,7 @@
           container.innerHTML = `
             <div class="empty-state">
               <div class="empty-state-icon">🎬</div>
-              <p>Chưa có video ghi hình</p>
+              <p>No recordings available</p>
             </div>
           `;
           return;
@@ -506,8 +506,8 @@
         container.innerHTML = videos.map(video => `
           <div class="archive-card" onclick="viewArchivedVideo('${video.filename}')">
             <div class="stream-title">${video.filename.replace('.webm', '')}</div>
-            <div class="stream-info">Ngày: ${new Date(video.createdAt).toLocaleString('vi-VN')}</div>
-            <button onclick="viewArchivedVideo('${video.filename}'); event.stopPropagation();">▶️ Phát</button>
+            <div class="stream-info">Date: ${new Date(video.createdAt).toLocaleString('en-US')}</div>
+            <button onclick="viewArchivedVideo('${video.filename}'); event.stopPropagation();">▶️ Play</button>
           </div>
         `).join('');
       } catch (err) {
@@ -572,7 +572,7 @@
       
       viewer.classList.add('active');
 
-      updateViewerStatus('⏳ Kết nối đến luồng...');
+      updateViewerStatus('⏳ Connecting to stream...');
 
       // Initialize MediaSource - this will set up the video stream
       initMediaSource();
@@ -626,7 +626,7 @@
               }
             }).catch(err => {
               console.error("[Viewer] Error joining stream:", err);
-              updateViewerStatus(`❌ Lỗi: ${err.message}`, 'error');
+              updateViewerStatus(`❌ Error: ${err.message}`, 'error');
             });
           }
         })
@@ -648,7 +648,7 @@
               }
             }).catch(err => {
               console.error("[Viewer] Error joining stream:", err);
-              updateViewerStatus(`❌ Lỗi: ${err.message}`, 'error');
+              updateViewerStatus(`❌ Error: ${err.message}`, 'error');
             });
           }
         });
@@ -664,7 +664,7 @@
       const viewer = document.getElementById('viewerSection');
       viewer.classList.add('active');
 
-      updateViewerStatus('⏳ Đang tải video...');
+      updateViewerStatus('⏳ Loading video...');
 
       // Clean up old MediaSource if exists
       if (mediaSource) {
@@ -700,38 +700,38 @@
 
       videoElement.addEventListener('canplay', () => {
         console.log('[Archived] Video ready to play');
-        updateViewerStatus(`✅ Sẵn sàng phát - Kéo để xem lại (${Math.floor(videoElement.duration)}s)`, 'success');
+        updateViewerStatus(`✅ Ready to play - Seek to review (${Math.floor(videoElement.duration)}s)`, 'success');
       });
 
       videoElement.addEventListener('play', () => {
         console.log('[Archived] Video playing');
-        updateViewerStatus('▶️ Đang phát...', 'info');
+        updateViewerStatus('▶️ Playing...', 'info');
       });
 
       videoElement.addEventListener('pause', () => {
         console.log('[Archived] Video paused');
-        updateViewerStatus(`⏸️ Tạm dừng (${Math.floor(videoElement.currentTime)}s / ${Math.floor(videoElement.duration)}s)`, 'info');
+        updateViewerStatus(`⏸️ Paused (${Math.floor(videoElement.currentTime)}s / ${Math.floor(videoElement.duration)}s)`, 'info');
       });
 
       videoElement.addEventListener('seeking', () => {
         console.log('[Archived] User seeking to', videoElement.currentTime);
-        updateViewerStatus(`🔍 Đang tìm kiếm...`, 'info');
+        updateViewerStatus(`🔍 Seeking...`, 'info');
       });
 
       videoElement.addEventListener('seeked', () => {
         console.log('[Archived] Seek completed, position:', videoElement.currentTime);
-        updateViewerStatus(`⏯️ Phát tiếp tục (${Math.floor(videoElement.currentTime)}s / ${Math.floor(videoElement.duration)}s)`, 'info');
+        updateViewerStatus(`⏯️ Resumed (${Math.floor(videoElement.currentTime)}s / ${Math.floor(videoElement.duration)}s)`, 'info');
       });
 
       videoElement.addEventListener('ended', () => {
         console.log('[Archived] Video finished');
-        updateViewerStatus('✅ Phát hết video', 'success');
+        updateViewerStatus('✅ Video finished', 'success');
       });
 
       videoElement.addEventListener('error', (e) => {
         console.error('[Archived] Video error:', videoElement.error);
-        const errorMsg = videoElement.error ? `${videoElement.error.code}` : 'Không xác định';
-        updateViewerStatus(`❌ Lỗi tải video: ${errorMsg}`, 'error');
+        const errorMsg = videoElement.error ? `${videoElement.error.code}` : 'Unknown';
+        updateViewerStatus(`❌ Video load error: ${errorMsg}`, 'error');
       });
 
       videoElement.addEventListener('loadedmetadata', () => {

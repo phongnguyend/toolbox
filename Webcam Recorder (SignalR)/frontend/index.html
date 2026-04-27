@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Quay Video Webcam</title>
+    <title>Webcam Video Recorder</title>
     <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@10.0.0/dist/browser/signalr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr-protocol-msgpack@10.0.0/dist/browser/signalr-protocol-msgpack.min.js"></script>
     <style>
@@ -63,7 +63,8 @@
       canvas {
         display: none;
       }
-      #photoPreview {
+      #photoPreview,
+      #screenshotPreview {
         display: none;
         border: 2px solid #333;
         border-radius: 10px;
@@ -98,36 +99,47 @@
     </style>
   </head>
   <body>
-    <h1>🎥 Ứng dụng Quay Video từ Webcam</h1>
+    <h1>🎥 Webcam Video Recorder</h1>
 
     <div class="section">
       <div class="section-title">📹 Camera</div>
       <video id="preview" autoplay muted></video><br />
-      <button id="startCamera">▶️ Bật Camera</button>
-      <button id="stopCamera" disabled>⏹️ Tắt Camera</button>
+      <button id="startCamera">▶️ Start Camera</button>
+      <button id="stopCamera" disabled>⏹️ Stop Camera</button>
     </div>
 
     <div class="section">
-      <div class="section-title">📷 Chụp Ảnh</div>
-      <button id="takePhoto" disabled>📷 Chụp Ảnh</button>
-      <button id="savePhoto" disabled>💾 Lưu Ảnh</button>
+      <div class="section-title">📷 Take Photo</div>
+      <button id="takePhoto" disabled>📷 Take Photo</button>
+      <button id="savePhoto" disabled>💾 Save Photo</button>
       <canvas id="photoCanvas"></canvas>
-      <img id="photoPreview" alt="Ảnh chụp" />
+      <img id="photoPreview" alt="Photo" />
     </div>
 
     <div class="section">
-      <div class="section-title">🎬 Quay Video</div>
-      <label>Tên Luồng:</label><br />
+      <div class="section-title">🖥️ Screen Share</div>
+      <video id="screenPreview" autoplay muted></video><br />
+      <button id="startScreenShare">🖥️ Start Sharing</button>
+      <button id="stopScreenShare" disabled>⏹️ Stop Sharing</button>
+      <button id="takeScreenshot" disabled>📷 Take Screenshot</button>
+      <button id="saveScreenshot" disabled>💾 Save Screenshot</button>
+      <canvas id="screenshotCanvas" style="display:none"></canvas>
+      <img id="screenshotPreview" alt="Screenshot" />
+    </div>
+
+    <div class="section">
+      <div class="section-title">🎬 Record Video</div>
+      <label>Stream Name:</label><br />
       <input
         id="streamTitle"
         type="text"
-        placeholder="Nhập tên cho luồng video"
+        placeholder="Enter stream name"
         value="My Recording"
       />
 
       <br />
-      <button id="startRecording" disabled>⏸️ Bắt Đầu Quay</button>
-      <button id="stopRecording" disabled>⏹️ Dừng Quay</button>
+      <button id="startRecording" disabled>⏸️ Start Recording</button>
+      <button id="stopRecording" disabled>⏹️ Stop Recording</button>
 
       <p id="startTimeDisplay" style="font-size: 18px; font-weight: bold"></p>
       <p id="recordingTimer" style="font-size: 18px; color: red"></p>
@@ -150,11 +162,11 @@
     </div>
 
     <div class="section">
-      <div class="section-title">📺 Xem Trực Tiếp & Lưu Trữ</div>
+      <div class="section-title">📺 Live View & Storage</div>
       <button
         onclick="window.open('viewer.html', 'viewer', 'width=1200,height=800')"
       >
-        👁️ Mở Trình Xem
+        👁️ Open Viewer
       </button>
     </div>
 
@@ -386,7 +398,7 @@
           };
 
           const now = new Date();
-          const timeStr = now.toLocaleTimeString("vi-VN");
+          const timeStr = now.toLocaleTimeString("en-US");
           startTimeDisplay.textContent = `⏱ Started at: ${timeStr}`;
 
           let seconds = 0;
@@ -521,6 +533,64 @@
           isUploading = false;
         }
       }
+
+      const startScreenShareBtn = document.getElementById('startScreenShare');
+      const stopScreenShareBtn = document.getElementById('stopScreenShare');
+      const takeScreenshotBtn = document.getElementById('takeScreenshot');
+      const saveScreenshotBtn = document.getElementById('saveScreenshot');
+      const screenshotCanvas = document.getElementById('screenshotCanvas');
+      const screenshotPreview = document.getElementById('screenshotPreview');
+      const screenPreview = document.getElementById('screenPreview');
+      let screenStream = null;
+
+      startScreenShareBtn.onclick = async () => {
+        try {
+          screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+          screenPreview.srcObject = screenStream;
+          startScreenShareBtn.disabled = true;
+          stopScreenShareBtn.disabled = false;
+          takeScreenshotBtn.disabled = false;
+          // Auto-stop when the user ends sharing via browser UI
+          screenStream.getVideoTracks()[0].onended = () => {
+            stopScreenShareBtn.click();
+          };
+        } catch (err) {
+          alert('❌ Cannot start screen share: ' + err);
+        }
+      };
+
+      stopScreenShareBtn.onclick = () => {
+        if (screenStream) {
+          screenStream.getTracks().forEach((t) => t.stop());
+          screenStream = null;
+        }
+        screenPreview.srcObject = null;
+        startScreenShareBtn.disabled = false;
+        stopScreenShareBtn.disabled = true;
+        takeScreenshotBtn.disabled = true;
+        saveScreenshotBtn.disabled = true;
+      };
+
+      takeScreenshotBtn.onclick = () => {
+        screenshotCanvas.width = screenPreview.videoWidth;
+        screenshotCanvas.height = screenPreview.videoHeight;
+        screenshotCanvas.getContext('2d').drawImage(screenPreview, 0, 0);
+        screenshotPreview.src = screenshotCanvas.toDataURL('image/png');
+        screenshotPreview.style.display = 'block';
+        saveScreenshotBtn.disabled = false;
+      };
+
+      saveScreenshotBtn.onclick = () => {
+        screenshotCanvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+          a.href = url;
+          a.download = `screenshot_${timestamp}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      };
 
       takePhotoBtn.onclick = () => {
         photoCanvas.width = preview.videoWidth;
